@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>赛博抓娃娃</title>
+<style>
+  :root{
+    --ink:#f5f2ee; --dim:#a79f97;
+    --hot:#ff2e6a; --gold:#ffcf4a; --cyan:#3ee8ff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:#0b0910;color:var(--ink);
+    font:14px/1.4 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+  #cv{position:fixed;inset:0;display:block}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
+       align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
+  .brand{font-weight:800;letter-spacing:.22em;font-size:13px;
+    background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
+    background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
+  .stats{display:flex;gap:10px}
+  .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums;
+    backdrop-filter:blur(8px);font-size:12px}
+  .chip b{color:var(--gold);font-size:14px}
+  #timer.warn b{color:var(--hot)}
+
+  /* ---------- 控制台 ---------- */
+  .panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
+    padding:18px max(14px,env(safe-area-inset-left)) max(22px,env(safe-area-inset-bottom));
+    display:flex;align-items:flex-end;justify-content:center;gap:20px;
+    background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
+  .dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:5px}
+  .dpad button{grid-area:auto}
+  .dpad .up{grid-column:2;grid-row:1} .dpad .dn{grid-column:2;grid-row:3}
+  .dpad .lf{grid-column:1;grid-row:2} .dpad .rt{grid-column:3;grid-row:2}
+  .dpad .mid{grid-column:2;grid-row:2;border:none;background:none;pointer-events:none;
+    display:grid;place-items:center;color:#4a4450;font-size:10px}
+  button{font:inherit;color:var(--ink);cursor:pointer;user-select:none}
+  .key{border-radius:14px;border:1px solid rgba(255,255,255,.14);
+    background:linear-gradient(#2a2533,#181420);box-shadow:0 3px 0 #0d0a12,0 8px 18px rgba(0,0,0,.5);
+    font-size:19px;display:grid;place-items:center;transition:transform .05s,box-shadow .05s}
+  .key:active,.key.on{transform:translateY(3px);box-shadow:0 0 0 #0d0a12,0 2px 10px rgba(0,0,0,.6);
+    background:linear-gradient(#3a3348,#241f30)}
+  .big{width:92px;height:92px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
+    border:1px solid rgba(255,255,255,.2);
+    background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
+    box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45);color:#fff}
+  .big:active,.big.on{transform:translateY(5px);box-shadow:0 0 0 #6b0022,0 4px 14px rgba(201,0,63,.4)}
+  .big[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+  .coin{width:92px;height:92px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
+    border:1px solid rgba(255,255,255,.2);
+    background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+    box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4);color:#3a2600}
+  .coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
+  .big,.coin{flex:0 0 auto}          /* 不加会被 flex 压成椭圆 */
+  .hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#4d4757;
+    font-size:11px;z-index:4;pointer-events:none}
+  @media (max-width:430px){          /* 竖屏手机：收紧控制台，键盘提示无意义 */
+    .panel{gap:8px;padding-left:8px;padding-right:8px}
+    .dpad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px)}
+    .big,.coin{width:78px;height:78px;font-size:13px}
+    .hint{display:none}
+  }
+
+  /* ---------- 结算 ---------- */
+  #toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
+    background:rgba(6,4,10,.62);backdrop-filter:blur(6px)}
+  #toast.show{display:grid;animation:fade .2s}
+  @keyframes fade{from{opacity:0}}
+  .card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:22px;
+    background:linear-gradient(160deg,#241d33,#140f1e);border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 24px 60px rgba(0,0,0,.6)}
+  .card .em{font-size:52px;line-height:1;margin-bottom:10px}
+  .card h2{margin:0 0 6px;font-size:21px}
+  .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
+  .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;
+    background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d}
+
+  /* ---------- 调试 ---------- */
+  #dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
+    background:rgba(14,11,20,.9);border:1px solid rgba(255,255,255,.12);border-radius:12px;
+    padding:10px 12px;backdrop-filter:blur(10px)}
+  #dev.hid>*:not(.dh){display:none}
+  .dh{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+    font-weight:700;color:var(--cyan);letter-spacing:.05em}
+  #dev label{display:block;margin-top:9px;color:var(--dim)}
+  #dev label span{color:var(--ink);float:right;font-variant-numeric:tabular-nums}
+  #dev input[type=range]{width:100%;margin-top:3px;accent-color:var(--hot)}
+  #dev .row{display:flex;gap:6px;margin-top:10px}
+  #dev .row button{flex:1;padding:6px;border-radius:8px;font-size:11px;
+    border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
+  #log{margin-top:9px;color:#6f6880;font-size:11px;min-height:2.6em;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="hud">
+  <div class="brand">赛博抓娃娃</div>
+  <div class="stats">
+    <div class="chip">币 <b id="coins">10</b></div>
+    <div class="chip">获得 <b id="won">0</b></div>
+    <div class="chip" id="timer">— <b>--</b></div>
+  </div>
+</div>
+
+<div id="dev" class="hid">
+  <div class="dh"><span>◈ 概率调试</span><span id="devt">+</span></div>
+  <label>抓中率 <span id="v_rate">18%</span><input id="s_rate" type="range" min="0" max="100" value="18"></label>
+  <label>保底次数 <span id="v_pity">8</span><input id="s_pity" type="range" min="1" max="20" value="8"></label>
+  <label>爪力衰减 <span id="v_slip">正常</span><input id="s_slip" type="range" min="0" max="2" value="1"></label>
+  <div class="row"><button id="b_reset">重排娃娃</button><button id="b_free">+10 币</button></div>
+  <div id="log">等待投币</div>
+</div>
+
+<div class="panel">
+  <button class="coin" id="btnCoin">投 币</button>
+  <div class="dpad">
+    <button class="key up" data-mv="f">▲</button>
+    <button class="key lf" data-mv="l">◀</button>
+    <div class="mid">移动</div>
+    <button class="key rt" data-mv="r">▶</button>
+    <button class="key dn" data-mv="b">▼</button>
+  </div>
+  <button class="big" id="btnDrop" disabled>下 爪</button>
+</div>
+<div class="hint">方向键 / WASD 移动 · 空格下爪 · C 投币</div>
+
+<div id="toast"><div class="card">
+  <div class="em" id="t_em">🧸</div>
+  <h2 id="t_h">抓到了！</h2>
+  <p id="t_p"></p>
+  <button id="t_ok">再来一次</button>
+</div></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+
+/* ══════════════════════════════════════════════════════════════
+   0. 配置（单位：米。柜体内腔 0.9 × 0.9 × 1.05，娃娃 14cm）
+   ══════════════════════════════════════════════════════════════ */
+const CFG = {
+  winRate : 0.18,      // 基础抓中率
+  pityAfter: 8,        // 连续未中 N 次后必中（盲盒新规要求的保底）
+  slipMode : 1,        // 0 温柔 1 正常 2 阴间
+  aimTime  : 30,       // 操作倒计时（秒）
+
+  W:0.45, D:0.45, H:1.05,        // 内腔半宽 / 半深 / 高
+  RAIL:1.00,                     // 龙门架高度
+  LIMIT:0.36,                    // 行程限位
+  HOLE:{r:0.11},                 // 出货口半宽；位置钉在左前角（真机都在前侧），由 W/D 推出
+  DOLLS:12, DR:0.07, DMASS:0.09,
+
+  MOVE_V:0.24, MOVE_A:1.1,       // 龙门横移速度 / 加速度
+  DOWN_V:0.52, UP_V:0.34,        // 下爪 / 提升速度
+  CABLE_UP:0.20,                 // 收线到顶时的绳长
+  FLOOR_CLR:0.125,               // 爪心离底面的最低高度（爪尖刚好不戳地板）
+};
+const HR = CFG.HOLE.r;
+CFG.HOLE.x = -CFG.W + HR;   // 嵌在左前角，两条边就是柜壁
+CFG.HOLE.z =  CFG.D  - HR;
+const CLAW_HOME = {x:CFG.HOLE.x, z:CFG.HOLE.z};
+console.assert(CFG.LIMIT >= Math.abs(CFG.HOLE.x), '行程限位到不了出货口，爪没法归位');
+
+/* ══════════════════════════════════════════════════════════════
+   1. 音效 —— WebAudio 程序化合成，零资源文件
+   ══════════════════════════════════════════════════════════════ */
+const SFX = (()=>{
+  let ac=null, master=null, motor=null;
+  const on = ()=>{ if(ac) return ac;
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value=.5; master.connect(ac.destination);
+    return ac; };
+  const env=(node,g,a,d)=>{ const t=ac.currentTime, gn=ac.createGain();
+    gn.gain.setValueAtTime(0,t); gn.gain.linearRampToValueAtTime(g,t+a);
+    gn.gain.exponentialRampToValueAtTime(1e-4,t+a+d); node.connect(gn); gn.connect(master);
+    return gn; };
+  const tone=(f,d,type='square',g=.10,f2=null,delay=0)=>{ if(!ac) return;
+    const t=ac.currentTime+delay, o=ac.createOscillator(); o.type=type;
+    o.frequency.setValueAtTime(f,t);
+    if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(0,t);
+    gn.gain.linearRampToValueAtTime(g,t+.008);
+    gn.gain.exponentialRampToValueAtTime(1e-4,t+d);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t+d+.02); };
+  const noise=(d,g,lp,delay=0)=>{ if(!ac) return;
+    const n=Math.floor(ac.sampleRate*d), buf=ac.createBuffer(1,n,ac.sampleRate), ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=ac.createBufferSource(); s.buffer=buf;
+    const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp;
+    const gn=ac.createGain(); gn.gain.value=g;
+    s.connect(f); f.connect(gn); gn.connect(master);
+    s.start(ac.currentTime+delay); };
+
+  return {
+    unlock(){ on(); if(ac.state==='suspended') ac.resume(); },
+    coin(){ tone(760,.06,'square',.10); tone(1180,.10,'square',.09,null,.06); noise(.05,.05,3000,.0); },
+    // 龙门电机：持续低频锯齿 + 低通，靠 gain 淡入淡出
+    motorSet(v){ if(!ac) return;
+      if(!motor){ const o=ac.createOscillator(); o.type='sawtooth'; o.frequency.value=64;
+        const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=340;
+        const g=ac.createGain(); g.gain.value=0;
+        o.connect(f); f.connect(g); g.connect(master); o.start();
+        motor={o,g,f}; }
+      motor.g.gain.setTargetAtTime(v*.09, ac.currentTime, .045);
+      motor.o.frequency.setTargetAtTime(58+v*26, ac.currentTime, .08); },
+    winch(dir){ tone(dir>0?128:104,.16,'sawtooth',.045,dir>0?150:96); },
+    close(){ noise(.09,.16,2200); tone(190,.09,'square',.09,120); if(navigator.vibrate)navigator.vibrate(35); },
+    open(){ noise(.07,.10,2600); tone(300,.06,'square',.06,420); },
+    thud(){ noise(.16,.20,260); tone(72,.13,'sine',.13,48); },
+    clatter(){ noise(.28,.16,520); tone(96,.2,'triangle',.08,52); },
+    win(){ [523,659,784,1046,1318].forEach((f,i)=>tone(f,.16,'square',.10,null,i*.075));
+           noise(.5,.05,5200,.1); if(navigator.vibrate)navigator.vibrate([40,60,120]); },
+    fail(){ tone(340,.16,'sawtooth',.07,150); tone(230,.22,'sawtooth',.06,90,.13); },
+    beep(){ tone(1400,.04,'square',.05); },
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   2. 场景
+   ══════════════════════════════════════════════════════════════ */
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0910);
+scene.fog = new THREE.Fog(0x0b0910, 4.2, 9.0);
+
+const camera = new THREE.PerspectiveCamera(38, 1, .05, 30);
+// 视点压在中线以下，让娃娃池落在画面中段，不被底部控制台挡住
+const CAM_AT = new THREE.Vector3(0, .30, 0);
+const camBase = new THREE.Vector3(0, .80, 2.7);
+
+scene.add(new THREE.HemisphereLight(0x8fb6ff, 0x140f1c, .55));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(1.1, 2.4, 1.6);
+key.castShadow = true;
+key.shadow.mapSize.set(1024,1024);
+Object.assign(key.shadow.camera,{left:-1.1,right:1.1,top:1.1,bottom:-1.1,near:.5,far:6});
+key.shadow.camera.updateProjectionMatrix();
+key.shadow.bias = -0.0012;
+scene.add(key);
+// 柜内顶灯（娃娃机的灵魂）
+const inner = new THREE.PointLight(0xfff0d0, 1.7, 2.2, 2);
+inner.position.set(0, CFG.H-0.08, 0); scene.add(inner);
+scene.add(new THREE.PointLight(0x3ee8ff, .8, 2.6, 2).translateZ(1.1).translateY(.4));
+scene.add(new THREE.PointLight(0xff2e6a, .7, 2.6, 2).translateX(-1.2).translateY(.7));
+
+const M = (c,r=.6,m=.1,o={}) => new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,...o});
+
+/* ---- 柜体 ---- */
+const cab = new THREE.Group(); scene.add(cab);
+const frameMat = M(0xd8143f,.42,.35), trimMat = M(0xffcf4a,.35,.6);
+
+// 底座：四块围板，不能用实心盒 —— 顶面会把出货口封死
+for(const [w,d,x,z] of [[1.04,.05,0,.495],[1.04,.05,0,-.495],[.05,1.04,.495,0],[.05,1.04,-.495,0]]){
+  const p = new THREE.Mesh(new THREE.BoxGeometry(w,.39,d), frameMat);
+  p.position.set(x,-.225,z); p.castShadow = p.receiveShadow = true; cab.add(p);
+}
+const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(1.07,.03,1.07), trimMat);
+baseTrim.position.y = -.045; cab.add(baseTrim);   // 必须在地板下面，否则会盖住整个池底
+
+// 立柱 4 根
+for(const sx of [-1,1]) for(const sz of [-1,1]){
+  const p = new THREE.Mesh(new THREE.BoxGeometry(.05,CFG.H,.05), frameMat);
+  p.position.set(sx*(CFG.W+.01), CFG.H/2, sz*(CFG.D+.01));
+  p.castShadow = true; cab.add(p);
+}
+// 顶箱 + 招牌
+const top = new THREE.Mesh(new THREE.BoxGeometry(1.04,.16,1.04), frameMat);
+top.position.y = CFG.H+.08; top.castShadow = true; cab.add(top);
+const marquee = new THREE.Mesh(new THREE.BoxGeometry(.96,.10,.01),
+  new THREE.MeshStandardMaterial({color:0x2a0f3d,emissive:0x3ee8ff,emissiveIntensity:.9,roughness:.4}));
+marquee.position.set(0, CFG.H+.09, CFG.D+.055); cab.add(marquee);
+const ceilPanel = new THREE.Mesh(new THREE.BoxGeometry(.86,.012,.86),
+  new THREE.MeshStandardMaterial({color:0xfff6e0,emissive:0xfff0cc,emissiveIntensity:.85}));
+ceilPanel.position.y = CFG.H-.02; cab.add(ceilPanel);
+
+// 背板 / 侧内衬
+const backPanel = new THREE.Mesh(new THREE.BoxGeometry(.92,CFG.H,.012), M(0x2b1140,.75,.15));
+backPanel.position.set(0, CFG.H/2, -CFG.D-.008); backPanel.receiveShadow = true; cab.add(backPanel);
+
+// 地面（挖出角落方口）
+const FL = [
+  {w:2*(CFG.W-HR), d:2*CFG.D,      x: HR,        z: 0  },  // 右侧大块
+  {w:2*HR,         d:2*(CFG.D-HR), x: CFG.HOLE.x, z:-HR },  // 左侧条（前端让出方口）
+];
+const floorMat = M(0x3a2b52,.85,.05);
+for(const f of FL){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(f.w,.02,f.d), floorMat);
+  m.position.set(f.x,-.01,f.z); m.receiveShadow = true; cab.add(m);
+}
+// 出货口 + 滑道
+// 凸起的口沿。缺了它娃娃会自己滚进出货口，几乎每局白送一个。
+// 口嵌在角落，只有两条边朝着池子，另两条边是柜壁。
+const LIP = [
+  [.010,   HR+.010, CFG.HOLE.x+HR+.010, CFG.HOLE.z],
+  [HR+.010,.010,    CFG.HOLE.x,         CFG.HOLE.z-HR-.010],
+];
+for(const [hx,hz,x,z] of LIP){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx*2,.042,hz*2), trimMat);
+  m.position.set(x,.021,z); m.castShadow = true; cab.add(m);
+}
+// BackSide：只渲染内壁，才能看见娃娃掉进滑道
+const chute = new THREE.Mesh(new THREE.BoxGeometry(2*HR+.02,.35,2*HR+.02),
+  new THREE.MeshStandardMaterial({color:0x120c1c,roughness:.9,side:THREE.BackSide}));
+chute.position.set(CFG.HOLE.x,-.19,CFG.HOLE.z); cab.add(chute);
+
+// 玻璃（最后渲染，压低不透明度，才不糊）
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color:0xcfe8ff, transparent:true, opacity:.10, roughness:.03, metalness:0,
+  transmission:0, side:THREE.DoubleSide, depthWrite:false });
+for(const [px,pz,rot] of [[0,CFG.D,0],[0,-CFG.D,0],[CFG.W,0,Math.PI/2],[-CFG.W,0,Math.PI/2]]){
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(CFG.W*2,CFG.H), glassMat);
+  g.position.set(px, CFG.H/2, pz); g.rotation.y = rot; g.renderOrder = 10; cab.add(g);
+}
+
+/* ---- 龙门架 + 爪 ---- */
+const steel = M(0xb9c2cf,.32,.85), steelDark = M(0x6d7684,.4,.8);
+// X 向导轨（固定，架在顶部两侧）
+for(const sz of [-1,1]){
+  const r = new THREE.Mesh(new THREE.BoxGeometry(.86,.016,.016), steelDark);
+  r.position.set(0, CFG.RAIL+.03, sz*.36); cab.add(r);
+}
+// 桥（沿 X 移动，横跨 Z）
+const bridge = new THREE.Group(); cab.add(bridge);
+const bridgeBar = new THREE.Mesh(new THREE.BoxGeometry(.03,.018,.80), steel);
+bridgeBar.position.y = CFG.RAIL+.03; bridgeBar.castShadow = true; bridge.add(bridgeBar);
+// 小车（沿 Z 移动）
+const trolley = new THREE.Group(); bridge.add(trolley);
+const trolleyBox = new THREE.Mesh(new THREE.BoxGeometry(.07,.045,.07), steel);
+trolleyBox.position.y = CFG.RAIL+.005; trolleyBox.castShadow = true; trolley.add(trolleyBox);
+const spool = new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.05,10), trimMat);
+spool.rotation.z = Math.PI/2; spool.position.y = CFG.RAIL+.005; trolley.add(spool);
+
+// 钢丝绳（每帧重定向的细圆柱）
+const cable = new THREE.Mesh(new THREE.CylinderGeometry(.0035,.0035,1,6), M(0x2b2b33,.5,.7));
+cab.add(cable);
+
+// 爪（独立挂在 cab 下，位置由钟摆物理决定，不是父子刚连）
+const claw = new THREE.Group(); cab.add(claw);
+const clawMat = M(0xdfe6ef,.25,.92);
+const housing = new THREE.Mesh(new THREE.CylinderGeometry(.030,.038,.036,14), clawMat);
+housing.castShadow = true; claw.add(housing);
+const collar = new THREE.Mesh(new THREE.CylinderGeometry(.020,.020,.022,12), trimMat);
+collar.position.y = .028; claw.add(collar);
+const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.05,8), steelDark);
+shaft.position.y = -.030; claw.add(shaft);
+
+const prongs = [];
+for(let i=0;i<3;i++){
+  const wrap = new THREE.Group();
+  wrap.rotation.y = i*Math.PI*2/3;
+  const hinge = new THREE.Group();
+  hinge.position.set(.020,-.014,0);
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(.0075,.0062,.070,8), clawMat);
+  upper.position.y = -.035; upper.castShadow = true; hinge.add(upper);
+  const knuckle = new THREE.Group(); knuckle.position.y = -.070; hinge.add(knuckle);
+  const lower = new THREE.Mesh(new THREE.CylinderGeometry(.0062,.0034,.048,8), clawMat);
+  lower.position.y = -.024; lower.castShadow = true; knuckle.add(lower);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(.0055,8,8), trimMat);
+  tip.position.y = -.048; knuckle.add(tip);
+  hinge.userData.knuckle = knuckle;
+  wrap.add(hinge); claw.add(wrap); prongs.push(hinge);
+}
+// open: 0 = 完全夹紧, 1 = 完全张开
+function setClawOpen(o){
+  o = Math.min(1,Math.max(0,o));
+  for(const h of prongs){
+    h.rotation.z = 0.10 + o*0.52;
+    h.userData.knuckle.rotation.z = -(0.58 - o*0.40);
+  }
+}
+setClawOpen(1);
+
+/* ══════════════════════════════════════════════════════════════
+   3. 物理
+   ══════════════════════════════════════════════════════════════ */
+const world = new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+world.solver.iterations = 14;
+world.allowSleep = false;
+world.defaultContactMaterial.friction = 0.42;
+world.defaultContactMaterial.restitution = 0.06;
+
+const st9 = (hw,hh,hd,x,y,z)=>{
+  const b = new CANNON.Body({mass:0, type:CANNON.Body.STATIC,
+    shape:new CANNON.Box(new CANNON.Vec3(hw,hh,hd))});
+  b.position.set(x,y,z); world.addBody(b); return b; };
+
+for(const f of FL) st9(f.w/2,.01,f.d/2, f.x,-.01,f.z);        // 地面（带口）
+st9(.02,CFG.H/2,CFG.D, -CFG.W-.02,CFG.H/2,0);                  // 四壁
+st9(.02,CFG.H/2,CFG.D,  CFG.W+.02,CFG.H/2,0);
+st9(CFG.W,CFG.H/2,.02, 0,CFG.H/2,-CFG.D-.02);
+st9(CFG.W,CFG.H/2,.02, 0,CFG.H/2, CFG.D+.02);
+st9(CFG.W+.05,.02,CFG.D+.05, 0,CFG.H+.02,0);                   // 顶板，娃娃不许飞出柜外
+for(const [hx,hz,x,z] of LIP) st9(hx,.021,hz, x,.021,z);       // 出货口凸沿
+// 滑道井壁，防止娃娃掉出口后飞走
+st9(.01,.17,HR, CFG.HOLE.x-HR-.01,-.17,CFG.HOLE.z);
+st9(.01,.17,HR, CFG.HOLE.x+HR+.01,-.17,CFG.HOLE.z);
+st9(HR,.17,.01, CFG.HOLE.x,-.17,CFG.HOLE.z-HR-.01);
+st9(HR,.17,.01, CFG.HOLE.x,-.17,CFG.HOLE.z+HR+.01);
+st9(HR+.01,.01,HR+.01, CFG.HOLE.x,-.35,CFG.HOLE.z);            // 滑道底
+
+// 爪的碰撞体：张开时只有中轴（细，从娃娃缝里插下去），夹紧时整只（粗）
+// 挂在爪心略上方，别在娃娃中心高度 —— 否则下爪时会把目标顶飞
+const clawShape = new CANNON.Sphere(0.020);
+const clawBody = new CANNON.Body({mass:0, type:CANNON.Body.KINEMATIC, shape:clawShape});
+clawBody.position.set(CLAW_HOME.x, CFG.RAIL-CFG.CABLE_UP+0.045, CLAW_HOME.z);  // 首帧别从原点跳过来
+world.addBody(clawBody);
+function setClawCollider(open){
+  clawShape.radius = 0.020 + (1-open)*0.028;
+  clawShape.updateBoundingSphereRadius();
+  clawBody.updateBoundingRadius();
+}
+
+/* ---- 娃娃 ---- */
+const PALETTE = [0xff8fb1,0x9ad9ff,0xffe08a,0xb6f5c8,0xd6b3ff,0xffb38a,0xa8c8ff,0xffd6ec];
+function makeDollMesh(color){
+  const g = new THREE.Group();
+  const R = CFG.DR, mat = M(color,.96,0);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(R,20,15), mat);
+  body.scale.set(1,.93,.96); body.castShadow = true; g.add(body);
+  for(const s of [-1,1]){
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(R*.46,12,10), mat);
+    ear.position.set(s*R*.70, R*.70, -R*.04); ear.scale.set(.9,1.15,.6);
+    ear.castShadow = true; g.add(ear);
+  }
+  for(const s of [-1,1]){                                    // 小手，剪影更像玩偶
+    const arm = new THREE.Mesh(new THREE.SphereGeometry(R*.30,10,8), mat);
+    arm.position.set(s*R*.88, -R*.28, R*.24); arm.scale.set(.8,1,.8); g.add(arm);
+  }
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(R*.30,12,10), M(0xfff4e4,.95,0));
+  snout.position.set(0,-R*.10,R*.78); snout.scale.set(1.15,.85,.8); g.add(snout);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(R*.075,8,8), M(0x2a2028,.6,0));
+  nose.position.set(0,R*.02,R*.98); g.add(nose);
+  for(const s of [-1,1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(R*.075,10,10), M(0x241c22,.35,.1));
+    eye.position.set(s*R*.27, R*.24, R*.80); g.add(eye);
+  }
+  return g;
+}
+const dolls = [];
+function spawnDolls(){
+  for(const d of dolls){ world.removeBody(d.body); cab.remove(d.mesh); }
+  dolls.length = 0;
+  for(let i=0;i<CFG.DOLLS;i++){
+    const color = PALETTE[i % PALETTE.length];
+    const mesh = makeDollMesh(color); cab.add(mesh);
+    const body = new CANNON.Body({
+      mass: CFG.DMASS, shape: new CANNON.Sphere(CFG.DR*0.94),
+      linearDamping:.30, angularDamping:.55 });
+    // 撒在中后部，别一开始就堆在出货口
+    body.position.set(
+      -0.10 + Math.random()*0.42,
+      0.14 + i*0.075,
+      -0.22 + Math.random()*0.44);
+    body.quaternion.setFromEuler(Math.random()*3, Math.random()*6, Math.random()*3);
+    world.addBody(body);
+    dolls.push({mesh, body, taken:false, gone:false, color});
+  }
+  // 预沉降期间给出货口盖个盖子，否则会有娃娃自己滚进去，开局白送
+  const lid = st9(.10,.01,.10, CFG.HOLE.x,-.01,CFG.HOLE.z);
+  for(let i=0;i<420;i++) world.step(1/120);   // 开局就是稳定的堆
+  world.removeBody(lid);
+}
+spawnDolls();
+
+/* ══════════════════════════════════════════════════════════════
+   4. 状态机 + 手感
+   ══════════════════════════════════════════════════════════════ */
+const G = {
+  state:'idle', t:0,
+  coins:10, won:0, lossStreak:0,
+  // 龙门架
+  gx:CLAW_HOME.x, gz:CLAW_HOME.z, gvx:0, gvz:0,
+  // 爪：位置/速度独立于小车，靠钟摆方程跟随
+  cx:CLAW_HOME.x, cz:CLAW_HOME.z, cvx:0, cvz:0,
+  cable:CFG.CABLE_UP, open:1,
+  // 本轮抓取
+  willWin:false, held:null, holdOff:new THREE.Vector3(),
+  slipAt:0, slipPhase:'', grabTried:false, grip:1,
+  timeLeft:0, lastBeep:0,
+};
+const input = {l:0,r:0,f:0,b:0};
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+
+const el = id=>document.getElementById(id);
+const uiCoins=el('coins'), uiWon=el('won'), uiTimer=el('timer'),
+      uiDrop=el('btnDrop'), uiLog=el('log');
+
+function log(s){ uiLog.textContent = s; }
+function setState(s){ G.state = s; G.t = 0; }
+
+/* ---- 投币 ---- */
+function insertCoin(){
+  SFX.unlock();
+  if(G.state!=='idle' || G.coins<=0) return;
+  G.coins--; uiCoins.textContent = G.coins;
+  SFX.coin();
+
+  // 上一局掉出去的娃娃这时才补进场，避免玩家眼前凭空刷新
+  for(const d of dolls){
+    if(!d.gone) continue;
+    d.body.position.set(rnd(-.02,.32), .30, rnd(-.18,.30));   // 低一点落，别弹到出货口去
+    d.body.velocity.setZero(); d.body.angularVelocity.set(rnd(-1.5,1.5),0,rnd(-1.5,1.5));
+    d.body.quaternion.setFromEuler(rnd(0,3),rnd(0,6),rnd(0,3));
+    d.body.wakeUp();
+    d.gone = false; d.counted = false;
+  }
+
+  // 抓中率在投币瞬间就摇定 —— 之后所有物理只是"演出"这个结果
+  G.willWin = Math.random() < CFG.winRate || G.lossStreak >= CFG.pityAfter;
+  G.grabTried = false; G.held = null; G.grip = 1; G.slipPhase = '';
+  G.timeLeft = CFG.aimTime; G.lastBeep = 99;
+  uiDrop.disabled = false;
+  setState('aim');
+  log(`本局：${G.willWin?'★ 命中':'× 未命中'}｜连败 ${G.lossStreak}/${CFG.pityAfter}`);
+}
+
+/* ---- 下爪 ---- */
+function dropClaw(){
+  if(G.state!=='aim') return;
+  uiDrop.disabled = true;
+  input.l=input.r=input.f=input.b=0;
+  for(const b of document.querySelectorAll('[data-mv]')) b.classList.remove('on');
+  SFX.winch(-1);
+  setState('down');
+}
+
+/* ---- 闭合瞬间：判定抓到哪个娃娃 + 决定爪力 ---- */
+function closeAndGrab(){
+  let best=null, bd=1e9;
+  for(const d of dolls){
+    if(d.gone) continue;
+    const p = d.body.position;
+    const hd = Math.hypot(p.x-G.cx, p.z-G.cz);
+    const dy = p.y - (clawY() - 0.055);          // 娃娃中心 vs 爪心下方
+    if(hd < CFG.DR*1.05 && dy > -0.055 && dy < 0.055 && hd < bd){ bd=hd; best=d; }
+  }
+  if(!best){                                     // 空爪 —— 瞄歪了，跟概率无关
+    G.held = null;
+    log('空爪（没对准）');
+    return;
+  }
+  G.held = best;
+  best.body.type = CANNON.Body.KINEMATIC;
+  best.body.velocity.setZero(); best.body.angularVelocity.setZero();
+  best.body.updateMassProperties();
+  G.holdOff.set(best.body.position.x-G.cx, 0, best.body.position.z-G.cz)
+           .multiplyScalar(0.45);                // 稍微被拽向爪心
+
+  if(G.willWin){
+    G.grip = 1; G.slipPhase = 'none';
+  }else{
+    G.grip = 1;
+    // 爪力衰减的四种经典姿态，越往后越气人
+    // lift 的参数是提升进度(0~1)；home / edge 的参数是「离方口边缘还剩多少净空」(米)
+    const table = [
+      ['lift', .38], ['lift', .70], ['home', .22], ['edge', .10]
+    ];
+    const w = CFG.slipMode===0 ? [.55,.30,.15,0] : CFG.slipMode===2 ? [.10,.20,.25,.45] : [.30,.28,.22,.20];
+    let r = Math.random(), i=0; for(; i<4; i++){ if((r-=w[i])<0) break; } i=Math.min(i,3);
+    G.slipPhase = table[i][0];
+    G.slipAt = G.slipPhase==='lift'
+      ? clamp(table[i][1] + rnd(-.06,.06), .15, .92)      // 上限留余量，否则可能永不触发
+      // 净空必须大于娃娃半径，否则松手了娃娃还是会倒进去 = 未中变中奖
+      : Math.max(CFG.DR + .03, table[i][1] + rnd(-.025,.025));
+
+    // 抓取点本身就贴着出货口时，往回走已经没有安全净空可松手了 —— 退回提升中打滑。
+    // 少了这一步，贴着口抓就能白拿，未中局照样进货。
+    const gapNow = Math.max(Math.abs(G.cx-CFG.HOLE.x)-HR, Math.abs(G.cz-CFG.HOLE.z)-HR);
+    if(G.slipPhase !== 'lift' && gapNow < G.slipAt + .02){
+      G.slipPhase = 'lift'; G.slipAt = rnd(.30,.75);
+    }
+  }
+  SFX.close();
+}
+
+/* ---- 松爪 / 打滑 ---- */
+function releaseHeld(slip){
+  const d = G.held; if(!d) return;
+  G.held = null;
+  d.body.type = CANNON.Body.DYNAMIC;
+  d.body.mass = CFG.DMASS; d.body.updateMassProperties();
+  // 打滑是"从爪牙缝里往下漏"，几乎不带横向速度。
+  // 若按主动松爪那样继承爪速，娃娃会被甩着抛物线飞进出货口 —— 未中局变中奖。
+  const vs = slip ? .12 : .7;
+  d.body.velocity.set(G.cvx*vs + rnd(-.03,.03), slip? -.08 : 0, G.cvz*vs + rnd(-.03,.03));
+  d.body.angularVelocity.set(rnd(-4,4), rnd(-4,4), rnd(-4,4));
+  d.body.wakeUp();
+}
+
+const clawY = ()=> CFG.RAIL - G.cable;
+
+/* ══════════════════════════════════════════════════════════════
+   5. 每帧更新
+   ══════════════════════════════════════════════════════════════ */
+const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0,1,0);
+// 爪碰撞体上一帧的"目标"位置。绝不能改成读 clawBody.position：
+// world.step 会把 kinematic 体按速度再推一次，读回来反推速度就成了正反馈，
+// 速度每帧翻号并顶到钳位 → 爪抖 ±3cm，松爪时还会把娃娃甩出出货口。
+const clawPrev = new THREE.Vector3(CLAW_HOME.x, CFG.RAIL-CFG.CABLE_UP+0.045, CLAW_HOME.z);
+
+function step(dt){
+  const s = G.state; G.t += dt;
+
+  /* ---- 5.1 龙门架：带加减速的横移，不是瞬移 ---- */
+  if(s==='home'){
+    // 归位必须用按剩余距离减速的速度伺服。
+    // 用 aim 那种开关式推力会绕着出货口来回振荡，永远收敛不到停止条件 → 卡死。
+    const seek=(err,v)=>{
+      const want = clamp(err*3.2, -CFG.MOVE_V, CFG.MOVE_V);
+      return v + clamp(want-v, -CFG.MOVE_A*2.2*dt, CFG.MOVE_A*2.2*dt);
+    };
+    G.gvx = seek(CLAW_HOME.x-G.gx, G.gvx);
+    G.gvz = seek(CLAW_HOME.z-G.gz, G.gvz);
+  }else{
+    const ax = s==='aim' ? (input.r?1:0)-(input.l?1:0) : 0;
+    const az = s==='aim' ? (input.b?1:0)-(input.f?1:0) : 0;
+    const drive=(v,a)=>{
+      if(a) v += a*CFG.MOVE_A*dt;
+      else  v -= Math.sign(v)*Math.min(Math.abs(v), CFG.MOVE_A*1.7*dt);
+      return clamp(v, -CFG.MOVE_V, CFG.MOVE_V);
+    };
+    G.gvx = drive(G.gvx, ax); G.gvz = drive(G.gvz, az);
+  }
+  const nx = clamp(G.gx + G.gvx*dt, -CFG.LIMIT, CFG.LIMIT);
+  const nz = clamp(G.gz + G.gvz*dt, -CFG.LIMIT, CFG.LIMIT);
+  if(nx===-CFG.LIMIT||nx===CFG.LIMIT) G.gvx=0;
+  if(nz===-CFG.LIMIT||nz===CFG.LIMIT) G.gvz=0;
+  G.gx=nx; G.gz=nz;
+  const moving = Math.hypot(G.gvx,G.gvz)/CFG.MOVE_V;
+  SFX.motorSet(moving>.05 ? moving : 0);
+
+  /* ---- 5.2 状态机 ---- */
+  if(s==='aim'){
+    G.timeLeft -= dt;
+    const n = Math.ceil(G.timeLeft);
+    if(n<=5 && n!==G.lastBeep && n>0){ G.lastBeep=n; SFX.beep(); }
+    if(G.timeLeft<=0) dropClaw();                 // 超时自动落爪
+  }
+
+  if(s==='down'){
+    // 落到底面，或落到堆顶就停（真机是钢丝一松就停，不会硬怼进娃娃堆）
+    let stopY = CFG.FLOOR_CLR;
+    for(const d of dolls){
+      if(d.gone) continue;
+      const p = d.body.position;
+      if(Math.hypot(p.x-G.cx, p.z-G.cz) < 0.075) stopY = Math.max(stopY, p.y + 0.055);
+    }
+    G.cable = Math.min(CFG.RAIL - stopY, G.cable + CFG.DOWN_V*dt);
+    if(clawY() <= stopY + 1e-3){ SFX.winch(0); setState('close'); }
+  }
+
+  if(s==='close'){
+    G.open = 1 - Math.min(1, G.t/0.42);
+    // 判定要在闭合"开始"时做：爪牙合拢过程会挤动娃娃，等合完再判就抓不到了
+    if(!G.grabTried){ closeAndGrab(); G.grabTried = true; }
+    if(G.t>=0.62){ SFX.winch(1); setState('lift'); }
+  }
+
+  if(s==='lift'){
+    const p = 1 - (G.cable-CFG.CABLE_UP)/(CFG.RAIL-CFG.FLOOR_CLR-CFG.CABLE_UP);
+    G.cable = Math.max(CFG.CABLE_UP, G.cable - CFG.UP_V*dt);
+    // 弱爪力：抖爪 + 缓慢张开，这就是"爪子一软"
+    console.assert(!(G.held && G.willWin && G.slipPhase!=='none'),
+      '命中局却走了打滑分支', G.slipPhase, G.slipAt);
+    if(G.held && G.slipPhase==='lift'){
+      G.grip = Math.max(0, 1 - p/G.slipAt);
+      G.open = (1-G.grip)*0.22 + Math.sin(G.t*46)*0.012*(1-G.grip);
+      if(p >= G.slipAt){ SFX.open(); releaseHeld(true); SFX.clatter(); }
+    }else if(G.held && G.slipPhase!=='none'){
+      G.open = 0.035 + Math.sin(G.t*30)*0.010;    // 夹住但一直在颤
+    }else{
+      G.open = 0;
+    }
+    if(G.cable <= CFG.CABLE_UP+1e-4) setState('home');
+  }
+
+  if(s==='home'){
+    const dist = Math.hypot(CLAW_HOME.x-G.gx, CLAW_HOME.z-G.gz);
+    if(G.held && (G.slipPhase==='home' || G.slipPhase==='edge')){
+      // 出货口是方口，判打滑必须用"到方口边缘的净空"，不能用到口心的直线距离：
+      // 半径 0.22 的点在对角方向离洞边还有 0.11，在正边方向只剩 0.08，娃娃会倒进去。
+      const gap = Math.max(Math.abs(G.gx-CFG.HOLE.x)-HR, Math.abs(G.gz-CFG.HOLE.z)-HR);
+      // 快到释放点时爪力渐松，抖得越来越明显 —— edge 就是拖到出货口边上才掉的那种
+      const loose = clamp(1 - (gap - G.slipAt)/0.18, 0, 1);
+      G.grip = 1 - loose;
+      G.open = loose*0.20 + Math.sin(G.t*44)*0.013*loose;
+      if(gap <= G.slipAt){ SFX.open(); releaseHeld(true); SFX.clatter(); }
+    }
+    // 等摆动停下来才松爪；G.t 是兜底，任何调参都不许让机器卡死
+    if((dist < 0.012 && Math.hypot(G.gvx,G.gvz) < 0.03 &&
+        Math.hypot(G.cx-G.gx, G.cz-G.gz) < 0.020) || G.t > 8){
+      // 不变量：未中的娃娃必须在到达出货口前就已经打滑掉落
+      console.assert(!(G.held && G.slipPhase!=='none'),
+        '爪力衰减没触发，未中局会被误判为中奖', G.slipPhase, G.slipAt);
+      SFX.open(); setState('open');
+    }
+  }
+
+  if(s==='open'){
+    G.open = Math.min(1, G.t/0.30);
+    if(G.t>0.12 && G.held) releaseHeld(false);
+    if(G.t>=0.9) setState('settle');
+  }
+
+  if(s==='settle'){
+    if(G.t>=1.1) finish();
+  }
+
+  /* ---- 5.3 爪的钟摆 —— 手感的一半在这里 ---- */
+  // 绳越长摆得越慢；不是刚连在小车上，所以横移会甩、停车会晃
+  const L = Math.max(0.06, G.cable);
+  const w2 = 9.82 / L;
+  const damp = Math.exp(-1.15*dt);
+  G.cvx = (G.cvx + (G.gx-G.cx)*w2*dt) * damp;
+  G.cvz = (G.cvz + (G.gz-G.cz)*w2*dt) * damp;
+  G.cx += G.cvx*dt; G.cz += G.cvz*dt;
+
+  /* ---- 5.4 同步到物理 & 渲染 ---- */
+  const cy = clawY();
+  // 碰撞球代表爪壳，必须挂在爪牙张开范围之上：低于这个高度，下爪时会先把目标顶跑
+  const tx = G.cx, ty = cy+0.045, tz = G.cz;
+  clawBody.position.set(tx, ty, tz);
+  // 位置一跳变（首帧、调试传送、掉帧）会算出天文速度把整堆娃娃打飞，钳在物理量级内
+  const VMAX = 2.0;
+  clawBody.velocity.set(
+    clamp((tx-clawPrev.x)/dt, -VMAX, VMAX),
+    clamp((ty-clawPrev.y)/dt, -VMAX, VMAX),
+    clamp((tz-clawPrev.z)/dt, -VMAX, VMAX));
+  clawPrev.set(tx, ty, tz);
+  setClawCollider(G.open);
+
+  if(G.held){                                     // 夹住的娃娃跟着爪走
+    // 提升过程中偏心量收敛到爪心：偏着到出货口上方松手会落在口沿上，中奖局兑现不了
+    G.holdOff.multiplyScalar(1 - Math.min(1, 3*dt));
+    const b = G.held.body;
+    b.position.set(G.cx + G.holdOff.x, cy - 0.055, G.cz + G.holdOff.z);
+    b.velocity.set(clawBody.velocity.x, clawBody.velocity.y, clawBody.velocity.z);
+  }
+
+  world.step(1/120, dt, 5);
+
+  for(const d of dolls){
+    d.mesh.position.copy(d.body.position);
+    d.mesh.quaternion.copy(d.body.quaternion);
+    if(d.gone) continue;
+    const p = d.body.position;
+    // 只有落在滑道范围内才算到手。单看 y 会把穿模掉到柜外的娃娃误判成中奖。
+    if(p.y < -0.24 && Math.abs(p.x-CFG.HOLE.x) < .12 && Math.abs(p.z-CFG.HOLE.z) < .12){
+      d.gone = true;
+    }else if(p.y < -0.55 || Math.abs(p.x) > .60 || Math.abs(p.z) > .60 || p.y > CFG.H+.1){
+      if(G.held === d) G.held = null;                          // 逃出柜体，塞回池子
+      d.body.type = CANNON.Body.DYNAMIC;
+      d.body.mass = CFG.DMASS; d.body.updateMassProperties();
+      d.body.position.set(rnd(-.05,.34), .48, rnd(-.20,.34));
+      d.body.velocity.setZero(); d.body.angularVelocity.setZero(); d.body.wakeUp();
+    }
+  }
+
+  bridge.position.x = G.gx;
+  trolley.position.z = G.gz;
+  claw.position.set(G.cx, cy, G.cz);
+  // 爪身跟着绳的倾角歪，别永远笔直
+  const tiltX = Math.atan2(G.cx-G.gx, L), tiltZ = Math.atan2(G.cz-G.gz, L);
+  claw.rotation.set(tiltZ, 0, -tiltX);
+  setClawOpen(G.open);
+
+  // 钢丝绳重定向
+  _v.set(G.cx-G.gx, cy-(CFG.RAIL+.005), G.cz-G.gz);
+  const len = _v.length();
+  cable.position.set((G.gx+G.cx)/2, (CFG.RAIL+.005+cy)/2, (G.gz+G.cz)/2);
+  cable.scale.y = len;
+  cable.quaternion.copy(_q.setFromUnitVectors(_up, _v.normalize()));
+
+  // HUD
+  if(s==='aim'){
+    const n = Math.max(0, Math.ceil(G.timeLeft));
+    uiTimer.innerHTML = `倒计时 <b>${n}s</b>`;
+    uiTimer.classList.toggle('warn', n<=5);
+  }else if(s==='idle'){
+    uiTimer.innerHTML = '待机 <b>--</b>'; uiTimer.classList.remove('warn');
+  }else{
+    uiTimer.innerHTML = '运行中 <b>···</b>'; uiTimer.classList.remove('warn');
+  }
+  inner.intensity = 1.7 + Math.sin(performance.now()/420)*0.06;
+  marquee.material.emissiveIntensity = .8 + Math.sin(performance.now()/300)*.2;
+}
+
+/* ---- 结算 ---- */
+function finish(){
+  const gotOne = dolls.some(d=>d.gone && !d.counted);
+  if(gotOne){
+    for(const d of dolls) if(d.gone && !d.counted){ d.counted=true; G.won++; }
+    uiWon.textContent = G.won;
+    G.lossStreak = 0;
+    SFX.win();
+    toast('🧸','抓到了！','娃娃已滑进出货口');
+  }else{
+    G.lossStreak++;
+    SFX.fail();
+    const left = CFG.pityAfter - G.lossStreak;
+    toast('😵','差一点…', left>0 ? `再 ${left} 次未中必掉` : '下一次必中');
+  }
+  setState('idle');
+  uiDrop.disabled = true;
+  log(`累计获得 ${G.won}｜连败 ${G.lossStreak}/${CFG.pityAfter}`);
+}
+function toast(em,h,p){
+  el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
+  el('toast').classList.add('show');
+}
+el('t_ok').onclick = ()=>{ el('toast').classList.remove('show'); insertCoin(); };
+
+/* ══════════════════════════════════════════════════════════════
+   6. 输入
+   ══════════════════════════════════════════════════════════════ */
+const KEY = {ArrowLeft:'l',ArrowRight:'r',ArrowUp:'f',ArrowDown:'b',
+             a:'l',d:'r',w:'f',s:'b',A:'l',D:'r',W:'f',S:'b'};
+addEventListener('keydown', e=>{
+  SFX.unlock();
+  const k = KEY[e.key];
+  if(k){ input[k]=1; e.preventDefault(); return; }
+  if(e.code==='Space'||e.key==='Enter'){ dropClaw(); e.preventDefault(); }
+  if(e.key==='c'||e.key==='C') insertCoin();
+});
+addEventListener('keyup', e=>{ const k=KEY[e.key]; if(k) input[k]=0; });
+
+// 触摸/鼠标：按住持续移动
+for(const b of document.querySelectorAll('[data-mv]')){
+  const k = b.dataset.mv;
+  const on = e=>{ e.preventDefault(); SFX.unlock(); input[k]=1; b.classList.add('on'); };
+  const off= e=>{ e.preventDefault(); input[k]=0; b.classList.remove('on'); };
+  b.addEventListener('pointerdown',on);
+  b.addEventListener('pointerup',off);
+  b.addEventListener('pointercancel',off);
+  b.addEventListener('pointerleave',off);
+}
+el('btnDrop').onclick = dropClaw;
+el('btnCoin').onclick = insertCoin;
+
+// 相机视差：只允许小幅度，真机你不能绕着飞
+let px=0, py=0, tx=0, ty=0;
+addEventListener('pointermove', e=>{
+  tx = (e.clientX/innerWidth - .5) * 2;
+  ty = (e.clientY/innerHeight - .5) * 2;
+});
+
+/* ---- 调试面板 ---- */
+const dev = el('dev');
+dev.querySelector('.dh').onclick = ()=>{
+  dev.classList.toggle('hid');
+  el('devt').textContent = dev.classList.contains('hid') ? '+' : '−';
+};
+el('s_rate').oninput = e=>{ CFG.winRate = e.target.value/100; el('v_rate').textContent = e.target.value+'%'; };
+el('s_pity').oninput = e=>{ CFG.pityAfter = +e.target.value; el('v_pity').textContent = e.target.value; };
+el('s_slip').oninput = e=>{ CFG.slipMode = +e.target.value;
+  el('v_slip').textContent = ['温柔','正常','阴间'][e.target.value]; };
+el('b_reset').onclick = ()=>{ if(G.state==='idle') spawnDolls(); };
+el('b_free').onclick = ()=>{ G.coins += 10; uiCoins.textContent = G.coins; SFX.coin(); };
+
+/* ══════════════════════════════════════════════════════════════
+   7. 主循环
+   ══════════════════════════════════════════════════════════════ */
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect = w/h;
+  camera.fov = h>w ? 44 : 38;
+  camera.updateProjectionMatrix();
+  // 按视锥反算距离：竖向要塞下 1.75m（含底座+顶箱+余量），横向要塞下 1.25m
+  const halfV = Math.tan(camera.fov*Math.PI/360);
+  const halfH = halfV*camera.aspect;
+  camBase.set(0, .80, Math.max(.875/halfV, .625/halfH) + .15);
+}
+addEventListener('resize', resize); resize();
+
+let last = performance.now();
+renderer.setAnimationLoop(()=>{
+  const now = performance.now();
+  let dt = (now-last)/1000; last = now;
+  dt = Math.min(dt, 1/30);                       // 卡帧时别让物理炸
+  step(dt);
+
+  px += (tx-px)*.06; py += (ty-py)*.06;
+  camera.position.set(camBase.x + px*.14, camBase.y - py*.10, camBase.z);
+  camera.lookAt(CAM_AT);
+  renderer.render(scene, camera);
+});
+
+// 调试口：控制台里 __claw.G / __claw.dolls 可以直接看状态
+// step 也暴露出来，测试可以脱离 rAF 手动推进仿真（面板隐藏时 rAF 会被浏览器暂停）
+window.__claw = {CFG, G, dolls, world, insertCoin, dropClaw, step, input};
+
+/* ── 自检：结果预定 + 保底一定会兑现 ───────────────────────── */
+(function selfCheck(){
+  let win=0, streak=0, maxStreak=0;
+  const rate=0.18, pity=8;
+  for(let i=0;i<200000;i++){
+    const w = Math.random()<rate || streak>=pity;
+    if(w){ win++; streak=0; } else { streak++; maxStreak=Math.max(maxStreak,streak); }
+  }
+  console.assert(maxStreak<=pity, `保底失效：连败 ${maxStreak} > ${pity}`);
+  const p = win/200000;
+  console.assert(p>rate && p<rate+0.06, `实际中率 ${(p*100).toFixed(2)}% 偏离预期`);
+  console.log(`[selfcheck] 实际中率 ${(p*100).toFixed(2)}%，最长连败 ${maxStreak}（保底 ${pity}）`);
+
+  // 整局仿真：脱离 rAF 手推物理，验证"先摇结果、物理只负责演出"真的兑现。
+  // 有几秒开销，所以只在 index.html?test 下自动跑；也可以在控制台 __claw.test()。
+  const runRoundTests = ()=>{
+  const aimAt=(tx,tz)=>{
+    const stopD = CFG.MOVE_V*CFG.MOVE_V/(2*CFG.MOVE_A*1.7);   // 松手要留滑行量
+    for(let i=0;i<2400;i++){
+      const ex=tx-G.gx, ez=tz-G.gz;
+      input.r=ex>stopD?1:0; input.l=ex<-stopD?1:0;
+      input.b=ez>stopD?1:0; input.f=ez<-stopD?1:0;
+      step(1/60);
+      if(!input.r&&!input.l&&!input.b&&!input.f && Math.hypot(G.gvx,G.gvz)<0.004) break;
+    }
+    input.l=input.r=input.f=input.b=0;
+  };
+  const round=(r)=>{
+    CFG.winRate=r; CFG.pityAfter=999; CFG.aimTime=1e9; G.coins=99;
+    let g=0; while(G.state!=='idle' && g++<3000) step(1/60);
+    const won0=G.won;
+    insertCoin();
+    for(let i=0;i<180;i++) step(1/60);                        // 等回收的娃娃落稳
+    const tgt=dolls.find(d=>!d.gone && d.body.position.y>0.02);
+    aimAt(tgt.body.position.x, tgt.body.position.z);
+    dropClaw();
+    let grabbed=false, slipped=false, top=0, f=0;
+    while(G.state!=='idle' && f++<2400){
+      const was=G.held, st=G.state;
+      step(1/60);
+      if(G.held===tgt) grabbed=true;
+      if(was===tgt && G.held!==tgt && st!=='open') slipped=true;   // 主动松爪只发生在 open
+      for(const d of dolls) top=Math.max(top, d.body.position.y);
+    }
+    return {grabbed, slipped, gone:!!tgt.gone, wonD:G.won-won0, top:+top.toFixed(2)};
+  };
+
+  // 断言的是"结果预定"这条不变量，不是"物理零意外"：
+  // 空爪（没对准）合法；打滑掉回池子后自己滚进出货口也合法（真机一样会），只统计不报错。
+  let bad=0, empty=0, fluke=0;
+  for(let i=0;i<5;i++){
+    const w=round(1), l=round(0);
+    if(w.grabbed && w.wonD<1){ bad++; console.error('命中局抓到了却没进货', w); }
+    if(l.grabbed && !l.slipped){ bad++; console.error('未中局爪力没衰减，等于白送', l); }
+    if(!w.grabbed) empty++;
+    if(!l.grabbed) empty++;
+    if(l.gone) fluke++;
+    if(w.top>CFG.H+.05 || l.top>CFG.H+.05){ bad++; console.error('娃娃被打出柜体', w.top, l.top); }
+  }
+  if(empty>5){ bad++; console.error(`空爪 ${empty}/10，抓取判定可能失效`); }
+  CFG.winRate=.18; CFG.pityAfter=8; CFG.aimTime=30;
+  G.won=0; G.lossStreak=0; G.coins=10; setState('idle');
+  uiWon.textContent='0'; uiCoins.textContent='10'; spawnDolls();
+  console.log(bad ? `[selfcheck] ✗ ${bad} 项失败`
+    : `[selfcheck] ✓ 10 局整局仿真通过：预定结果与物理演出一致（空爪 ${empty}，未中局意外进货 ${fluke}）`);
+  return bad;
+  };
+
+  window.__claw.test = runRoundTests;
+  if(location.search.includes('test')) runRoundTests();
+})();
+</script>
+</body>
+</html>
