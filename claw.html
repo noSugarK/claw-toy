@@ -45,6 +45,7 @@
     -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
     box-shadow:var(--glass-shadow);transition:transform .15s,background .15s}
   .backbtn:active{transform:scale(.9);background:var(--glass-bg-strong)}
+  .backbtn.on{color:var(--hot);background:var(--glass-bg-strong)}
   .brand{font-family:"Bungee",var(--cjk),sans-serif;letter-spacing:.06em;font-size:13px;
     background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
     background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
@@ -124,7 +125,7 @@
     background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
   #toast.show{display:grid;animation:fade .22s}
   @keyframes fade{from{opacity:0}}
-  .card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+  .card{position:relative;width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
     background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));
     border:1px solid var(--glass-border);
     -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
@@ -136,6 +137,12 @@
   .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
   .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;
     background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d}
+  .card .x{position:absolute;top:14px;right:14px;width:26px;height:26px;padding:0;
+    border-radius:50%;font-size:12px;font-weight:400;line-height:1;
+    background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--dim);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    transition:transform .15s,background .15s,color .15s}
+  .card .x:active{transform:scale(.88);background:var(--glass-bg-strong);color:var(--ink)}
 
   /* ---------- 五彩纸屑：中奖反馈 ---------- */
   .confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
@@ -144,6 +151,17 @@
     0%{transform:translate(0,0) rotate(0deg);opacity:1}
     100%{transform:translate(calc(var(--dx,0) * 130px),68vh) rotate(720deg);opacity:0}
   }
+
+  /* ---------- 侧视小窗 ---------- */
+  #sidebox{position:fixed;left:12px;top:56px;z-index:3;width:108px;height:144px;border-radius:14px;
+    overflow:hidden;pointer-events:none;border:1px solid var(--glass-border);
+    box-shadow:var(--glass-shadow);background:rgba(10,8,16,.3);
+    transition:opacity .2s,transform .2s;}
+  #sidebox.hid{opacity:0;transform:scale(.92)}
+  #sidebox .lbl{position:absolute;left:0;right:0;bottom:0;padding:3px 0;text-align:center;
+    font-size:8.5px;letter-spacing:.1em;color:var(--dim);z-index:1;
+    background:linear-gradient(transparent,rgba(6,4,10,.8))}
+  @media (max-width:430px){ #sidebox{width:86px;height:114px} }
 
   /* ---------- 调试 ---------- */
   #dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
@@ -170,6 +188,7 @@
   <div class="hud-left">
     <a class="backbtn" href="index.html" title="返回大厅" aria-label="返回大厅">←</a>
     <div class="brand">赛博抓娃娃</div>
+    <button class="backbtn" id="btnSide" title="切换侧视图" aria-label="切换侧视图">👁</button>
   </div>
   <div class="stats">
     <div class="chip">币 <b id="coins">10</b></div>
@@ -177,6 +196,8 @@
     <div class="chip" id="timer">— <b>--</b></div>
   </div>
 </div>
+
+<div id="sidebox"><span class="lbl">侧视图 · 判深度</span></div>
 
 <div id="dev" class="hid">
   <div class="dh"><span>◈ 概率调试</span><span id="devt">+</span></div>
@@ -195,6 +216,7 @@
 <div class="hint">摇杆 / 方向键 / WASD 移动 · 空格下爪 · C 投币</div>
 
 <div id="toast"><div class="card">
+  <button class="x" id="t_close" aria-label="关闭">✕</button>
   <div class="em" id="t_em">🧸</div>
   <h2 id="t_h">抓到了！</h2>
   <p id="t_p"></p>
@@ -320,6 +342,11 @@ const camera = new THREE.PerspectiveCamera(38, 1, .05, 30);
 // 视点压在中线以下，让娃娃池落在画面中段，不被底部控制台挡住
 const CAM_AT = new THREE.Vector3(0, .30, 0);
 const camBase = new THREE.Vector3(0, .80, 2.7);
+
+// 侧视小窗：正面视角判断不了前后（Z）深度，加一个侧着看的机位辅助对位
+const camSide = new THREE.PerspectiveCamera(36, 1, .05, 30);
+camSide.position.set(2.0, .78, 0);
+camSide.lookAt(CAM_AT);
 
 scene.add(new THREE.HemisphereLight(0x8fb6ff, 0x140f1c, .55));
 const key = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -989,7 +1016,10 @@ function toast(em,h,p){
   el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
   el('toast').classList.add('show');
 }
-el('t_ok').onclick = ()=>{ el('toast').classList.remove('show'); insertCoin(); };
+function closeToast(){ el('toast').classList.remove('show'); }
+el('t_ok').onclick = ()=>{ closeToast(); insertCoin(); };
+el('t_close').onclick = closeToast;
+el('toast').addEventListener('click', e=>{ if(e.target.id==='toast') closeToast(); });
 
 /* ══════════════════════════════════════════════════════════════
    6. 输入
@@ -1067,7 +1097,24 @@ function resize(){
   const halfV = Math.tan(camera.fov*Math.PI/360);
   const halfH = halfV*camera.aspect;
   camBase.set(0, .80, Math.max(.875/halfV, .625/halfH) + .15);
+  layoutSideBox();
 }
+
+/* ---- 侧视小窗：判断前后（Z）深度用，正面机位天生看不出这个 ---- */
+const sidebox = el('sidebox'), btnSide = el('btnSide');
+let sideOn = true, sideRect = null;
+function layoutSideBox(){
+  const r = sidebox.getBoundingClientRect();
+  sideRect = {x:r.left, y:innerHeight-r.top-r.height, w:r.width, h:r.height}; // WebGL 视口原点在左下角
+  camSide.aspect = r.width / r.height;
+  camSide.updateProjectionMatrix();
+}
+btnSide.onclick = ()=>{
+  sideOn = !sideOn;
+  sidebox.classList.toggle('hid', !sideOn);
+  btnSide.classList.toggle('on', !sideOn);
+};
+
 addEventListener('resize', resize); resize();
 
 let last = performance.now();
@@ -1082,7 +1129,17 @@ renderer.setAnimationLoop(()=>{
   const sx = (Math.random()*2-1)*camShake, sy = (Math.random()*2-1)*camShake;
   camera.position.set(camBase.x + px*.14 + sx, camBase.y - py*.10 + sy, camBase.z);
   camera.lookAt(CAM_AT);
+  renderer.setViewport(0,0,innerWidth,innerHeight);
   renderer.render(scene, camera);
+
+  if(sideOn && sideRect){                        // 小窗里叠一份侧面机位，实时同步
+    renderer.setScissorTest(true);
+    renderer.setScissor(sideRect.x, sideRect.y, sideRect.w, sideRect.h);
+    renderer.setViewport(sideRect.x, sideRect.y, sideRect.w, sideRect.h);
+    renderer.clearDepth();
+    renderer.render(scene, camSide);
+    renderer.setScissorTest(false);
+  }
 });
 
 // 调试口：控制台里 __claw.G / __claw.dolls 可以直接看状态

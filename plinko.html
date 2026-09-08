@@ -187,7 +187,7 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
   background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
 #toast.show{display:grid;animation:fade .22s}
 @keyframes fade{from{opacity:0}}
-.card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+.card{position:relative;width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
   background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));
   border:1px solid var(--glass-border);
   -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
@@ -199,6 +199,12 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
 .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;font-family:inherit;
   background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d;cursor:pointer}
+.card .x{position:absolute;top:14px;right:14px;width:26px;height:26px;padding:0;
+  border-radius:50%;font-size:12px;font-weight:400;line-height:1;
+  background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--dim);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  transition:transform .15s,background .15s,color .15s}
+.card .x:active{transform:scale(.88);background:var(--glass-bg-strong);color:var(--ink)}
 
 /* ---------- 五彩纸屑 + 球的拖尾余晖 ---------- */
 .confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
@@ -294,6 +300,7 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 <div class="hint">投币后按钮变成「停止」，按下锁定倍率和出口，再拖右下角拉杆蓄力发射</div>
 
 <div id="toast"><div class="card">
+  <button class="x" id="t_close" aria-label="关闭">✕</button>
   <div class="em" id="t_em">🎯</div>
   <h2 id="t_h">中了！</h2>
   <p id="t_p"></p>
@@ -667,11 +674,14 @@ function toast(em,h,p){
   el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
   el('toast').classList.add('show');
 }
-el('t_ok').onclick = ()=>{
+function closeToast(){
   el('toast').classList.remove('show');
   clearLights(); uiRoundMult.textContent='--';
   G.state='idle'; setBtn('投 币', G.coins>=CFG.BET, 'coin');
-};
+}
+el('t_ok').onclick = closeToast;
+el('t_close').onclick = closeToast;
+el('toast').addEventListener('click', e=>{ if(e.target.id==='toast') closeToast(); });
 
 /* ══════════════════════════════════════════════════════════════
    6. 自检：赔率必须跟亮灯数量对得上，倍率抽取必须均匀
