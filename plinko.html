@@ -34,9 +34,9 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 
 /* ---------- 舞台 ---------- */
 .stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-  padding:64px 16px 108px}
+  padding:64px 16px 108px; perspective:1100px}
 .pinball{
-  position:relative; width:min(94vw,460px);
+  position:relative; width:min(94vw,460px); transform:rotateX(6deg); transform-origin:50% 100%;
   background:linear-gradient(180deg,var(--frame),var(--frame-dark));
   border-radius:22px; padding:14px; box-shadow:0 40px 90px -34px rgba(0,0,0,.8);
 }
@@ -65,6 +65,7 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .board{position:relative; height:216px; border-radius:8px; overflow:hidden;
   background:linear-gradient(180deg,#1c1528,#120c1a 60%,#150f20);
   border:1px solid rgba(255,255,255,.06);
+  box-shadow:inset 0 14px 22px rgba(0,0,0,.5), inset 0 -8px 16px rgba(0,0,0,.4);
 }
 .entry-path{position:absolute; top:2px; right:2px; width:70%; height:22%}
 .peg-field{position:absolute; left:0; right:0; bottom:0; height:75%}
@@ -72,12 +73,18 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
   background:radial-gradient(circle at 32% 28%,#fff,#c6ced9 45%,#5a6270 100%);
   box-shadow:0 2px 3px rgba(0,0,0,.5);
 }
-#fallBall{
-  position:absolute; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%;
+/* 唯一一颗球：从内轨蓄力、发射、拐进主面板、落到出口，全程同一个元素、同一套坐标系
+   （相对 .pinball-inner 用 px 定位，靠 getBoundingClientRect 换算，不用百分比） */
+.ball{
+  position:absolute; top:0; left:0; width:15px; height:15px; margin:-7.5px 0 0 -7.5px;
+  border-radius:50%; z-index:9; pointer-events:none;
   background:radial-gradient(circle at 32% 28%,#fff,var(--gold) 55%,#a97300 100%);
-  box-shadow:0 0 12px 3px rgba(255,207,74,.55); z-index:2; display:none;
-  transition:left .17s cubic-bezier(.36,.2,.4,1), top .17s cubic-bezier(.36,.2,.4,1);
+  box-shadow:0 3px 6px rgba(0,0,0,.55), 0 0 12px 3px rgba(255,207,74,.55);
+  transition:left .16s cubic-bezier(.34,.2,.4,1), top .16s cubic-bezier(.34,.2,.4,1);
 }
+.ball.notransition{transition:none}
+.ball.spin{animation:ballspin .45s linear infinite}
+@keyframes ballspin{to{transform:rotate(360deg)}}
 
 .exit-row{display:grid; grid-template-columns:repeat(15,minmax(0,1fr)); gap:2.5px; position:relative; z-index:1}
 .exit{height:34px; min-width:0; border-radius:5px 5px 2px 2px; display:flex; flex-direction:column;
@@ -106,10 +113,6 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .cab-lever .power-fill{position:absolute; left:0; right:0; bottom:0; border-radius:0 0 6px 6px;
   height:0%; background:linear-gradient(180deg,rgba(255,207,74,.1),rgba(255,207,74,.55));
   transition:height .06s linear}
-.cab-lever .innerball{position:absolute; left:50%; bottom:5%; transform:translateX(-50%);
-  width:17px; height:17px; border-radius:50%;
-  background:radial-gradient(circle at 32% 28%,#fff,var(--gold) 55%,#a97300 100%);
-  box-shadow:0 0 10px 3px rgba(255,207,74,.5); transition:bottom .25s cubic-bezier(.16,.9,.3,1.1)}
 
 .plunger{position:absolute; right:0; bottom:12px; z-index:6; display:flex; align-items:center; touch-action:none}
 .plunger .cap{margin-right:6px; font-family:"Chakra Petch",sans-serif; font-size:8px; letter-spacing:.08em;
@@ -160,7 +163,8 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
   .exit .exit-label{font-size:6px}
 }
 @media (prefers-reduced-motion:reduce){
-  #fallBall,.cab-lever .innerball{transition:none}
+  .ball{transition:none}
+  .ball.spin{animation:none}
 }
 </style>
 </head>
@@ -194,7 +198,6 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
                     stroke-width="2.4" stroke-dasharray="4 6" stroke-linecap="round"/>
             </svg>
             <div class="peg-field" id="pegField"></div>
-            <div id="fallBall"></div>
           </div>
 
           <div class="exit-row" id="exitRow"></div>
@@ -208,11 +211,11 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
         <div class="cab-lever">
           <div class="rail" id="leverRail">
             <div class="power-fill" id="powerFill"></div>
-            <div class="innerball" id="innerBall"></div>
           </div>
         </div>
       </div>
 
+      <div class="ball" id="ball"></div>
     </div>
 
     <div class="plunger" id="plunger">
@@ -224,10 +227,9 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 </div>
 
 <div class="panel">
-  <button class="coin" id="btnCoin">投 币</button>
-  <button class="big" id="btnStop" disabled>停 止</button>
+  <button class="coin" id="btnMain">投 币</button>
 </div>
-<div class="hint">投币后按「停止」锁定倍率和出口，再拖右下角拉杆蓄力发射</div>
+<div class="hint">投币后按钮变成「停止」，按下锁定倍率和出口，再拖右下角拉杆蓄力发射</div>
 
 <div id="toast"><div class="card">
   <div class="em" id="t_em">🎯</div>
@@ -243,12 +245,13 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 const CFG = {
   N_EXIT: 15, ROWS: 6,
   MULTS: [2,4,6,8,10],
-  LIT_COUNT: {2:6, 4:4, 6:2, 8:1, 10:1},   // 倍率越高，留给玩家的出口越少
+  LIT_COUNT: {2:6, 4:4, 6:2, 8:1, 10:1},        // 倍率越高，留给玩家的出口越少
+  MULT_WEIGHTS: {2:40, 4:25, 6:17, 8:10, 10:8}, // 倍率越低，这一局摇到它的概率越大
   BET: 1,
 };
 const G = {
   coins: 10, score: 0,
-  state: 'idle',      // idle | ready | charging | falling | settle
+  state: 'idle',      // idle | chasing | locked | charging | falling | settle
   lit: new Set(), mult: null,
 };
 const el = id=>document.getElementById(id);
@@ -335,8 +338,14 @@ const multTiles = [...document.querySelectorAll('.mult')];
 /* ══════════════════════════════════════════════════════════════
    3. 结果判定 —— 纯函数，跟动画完全分开，方便自检
    ══════════════════════════════════════════════════════════════ */
+const MULT_WEIGHT_TOTAL = CFG.MULTS.reduce((s,m)=>s+CFG.MULT_WEIGHTS[m],0);
+function pickMult(){
+  let r = Math.random()*MULT_WEIGHT_TOTAL;
+  for(const m of CFG.MULTS){ r -= CFG.MULT_WEIGHTS[m]; if(r<0) return m; }
+  return CFG.MULTS[CFG.MULTS.length-1];   // 浮点误差兜底
+}
 function pickRound(){
-  const mult = CFG.MULTS[Math.floor(Math.random()*CFG.MULTS.length)];
+  const mult = pickMult();
   const need = CFG.LIT_COUNT[mult];
   const lit = new Set();
   while(lit.size < need) lit.add(Math.floor(Math.random()*CFG.N_EXIT));
@@ -387,33 +396,81 @@ function stopChaseAndLock(){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   5. 投币 / 拉杆蓄力 / 发射 / 掉落动画
+   5. 投币 / 停止（同一个按钮） / 拉杆蓄力 / 发射 / 掉落动画
    ══════════════════════════════════════════════════════════════ */
+const btnMain = el('btnMain');
+function setBtn(label, enabled, kind){   // kind: 'coin'(金色) | 'stop'(红色)
+  btnMain.textContent = label;
+  btnMain.disabled = !enabled;
+  btnMain.classList.toggle('coin', kind==='coin');
+  btnMain.classList.toggle('big', kind==='stop');
+}
 function insertCoin(){
   SFX.unlock();
   if(G.state!=='idle' || G.coins<CFG.BET) return;
   G.coins -= CFG.BET; uiCoins.textContent = G.coins;
   SFX.coin();
   G.state = 'chasing';
-  el('btnCoin').disabled = true;
-  el('btnStop').disabled = false;
+  setBtn('停 止', true, 'stop');
   startChase();
 }
 function pressStop(){
   if(G.state!=='chasing') return;
   stopChaseAndLock();
   G.state = 'locked';
-  el('btnStop').disabled = true;
+  setBtn('停 止', false, 'stop');
 }
+btnMain.onclick = ()=>{
+  if(G.state==='idle') insertCoin();
+  else if(G.state==='chasing') pressStop();
+};
+
+/* ---- 球的坐标系统：只有一个球元素，全程相对 .pinball-inner 用 px 定位 ----
+   钉板收了 6°/rotateX 的 3D 倾斜，但 getBoundingClientRect 拿到的是变换后的
+   真实渲染坐标，所以下面这套换算在有倾斜的情况下依然是对的，不用另外补偿。 */
+const ball = el('ball');
+const pinnerEl = document.querySelector('.pinball-inner');
+const railEl = el('leverRail'), boardEl = el('board');
+const ENTRY_X = 96, ENTRY_Y = 5;    // 入板口在主面板里的位置（% of board）
+
+const relTo = (r, ir) => ({x:r.left-ir.left, y:r.top-ir.top});
+function railRestXY(){
+  const rr = railEl.getBoundingClientRect(), ir = pinnerEl.getBoundingClientRect();
+  const o = relTo(rr, ir);
+  return { x: o.x + rr.width/2, y: o.y + rr.height*0.92 };
+}
+function railTopXY(){
+  const rr = railEl.getBoundingClientRect(), ir = pinnerEl.getBoundingClientRect();
+  const o = relTo(rr, ir);
+  return { x: o.x + rr.width/2, y: o.y + 3 };
+}
+function boardPt(xPct, yPct){
+  const br = boardEl.getBoundingClientRect(), ir = pinnerEl.getBoundingClientRect();
+  const o = relTo(br, ir);
+  return { x: o.x + br.width*xPct/100, y: o.y + br.height*yPct/100 };
+}
+function exitPt(i){
+  const er = exits[i].getBoundingClientRect(), ir = pinnerEl.getBoundingClientRect();
+  const o = relTo(er, ir);
+  return { x: o.x + er.width/2, y: o.y + 7 };
+}
+function placeBall(pt){ ball.style.left = pt.x+'px'; ball.style.top = pt.y+'px'; }
+function placeBallInstant(pt){
+  ball.classList.add('notransition'); placeBall(pt);
+  ball.getBoundingClientRect();               // 强制回流，避免下一次改动被并进这次的"无动画"里
+  ball.classList.remove('notransition');
+}
+placeBallInstant(railRestXY());               // 开局：球静静待在内轨里
+addEventListener('resize', ()=>{ if(G.state!=='falling') placeBallInstant(railRestXY()); });
 
 const plunger = el('plunger'), plungerKnob = el('plungerKnob');
-const powerFill = el('powerFill'), innerBall = el('innerBall');
+const powerFill = el('powerFill');
 const PULL_MAX = 46; // 拉杆最大行程 px
 let pullPid = null, pullStartY = 0, power = 0;
 
 function setPlunger(p){
   power = clamp(p,0,1);
-  plungerKnob.style.transform = `translateX(${power*15}px)`;
+  plungerKnob.style.transform = `translateY(${power*15}px)`;   // 往下拉，手柄跟着往下走，不是横着走
   powerFill.style.height = (power*100).toFixed(0)+'%';
   uiPower.textContent = power>0.02 ? Math.round(power*100)+'%' : '--';
 }
@@ -425,6 +482,7 @@ plungerKnob.addEventListener('pointerdown', e=>{
   pullPid = e.pointerId;
   try{ plungerKnob.setPointerCapture(pullPid); }catch{}   // 极端情况下 capture 失败也不能挡住蓄力
   pullStartY = e.clientY; plunger.classList.add('charging');
+  ball.classList.add('notransition');    // 蓄力时球跟手指 1:1，不要过渡动画的延迟感
   G.state = 'charging';
   e.preventDefault();
 });
@@ -434,7 +492,8 @@ plungerKnob.addEventListener('pointermove', e=>{
   const p = clamp(dy/PULL_MAX, 0, 1);
   if(Math.abs(p-power)>0.02) SFX.charge(p);
   setPlunger(p);
-  innerBall.style.bottom = (5 + p*35).toFixed(0)+'%';   // 蓄力时球先被压低一点点
+  const rest = railRestXY();
+  placeBall({x:rest.x, y:rest.y + p*16});         // 球跟着拉杆的力度往下退，像被压缩的弹簧
   e.preventDefault();
 });
 function pullEnd(e){
@@ -443,7 +502,8 @@ function pullEnd(e){
   if(G.state!=='charging') return;
   const p = power;
   resetPlunger();
-  if(p < 0.08){ G.state='locked'; innerBall.style.bottom='6%'; return; }  // 拉太轻，当没拉，倍率和出口还锁着
+  ball.classList.remove('notransition');
+  if(p < 0.08){ G.state='locked'; placeBall(railRestXY()); return; }  // 拉太轻，弹簧把球送回原位，当没拉
   doLaunch(p);
 }
 plungerKnob.addEventListener('pointerup', pullEnd);
@@ -453,39 +513,47 @@ async function doLaunch(p){
   G.state = 'falling';
   // 倍率和亮灯出口在「停止」那一下已经锁定了，这里只管让球落进哪个口
   const {win, col} = rollLanding(G.lit);
-
   SFX.launch();
-  innerBall.style.bottom = (10 + p*82).toFixed(0)+'%';   // 力度越大球在内轨弹得越高
-  await wait(260);
+  ball.classList.add('spin');
 
-  const ball = el('fallBall');
-  const boardH = el('board').clientHeight;
-  const entryX = colX(CFG.N_EXIT-1) + 3, entryY = 6;     // 从右上角入板口进来
-  ball.style.transition = 'none';
-  ball.style.left = entryX+'%'; ball.style.top = entryY+'%';
-  ball.style.display = 'block';
-  ball.getBoundingClientRect();                          // 强制回流，让下一帧的 transition 生效
-  ball.style.transition = '';
+  // 1) 内轨发射：从蓄力位置冲到轨道顶部，力度越大冲得越快
+  const dur1 = (0.22 - p*0.09);
+  ball.style.transitionDuration = dur1.toFixed(2)+'s';
+  placeBall(railTopXY());
+  await wait(dur1*1000 + 20);
 
+  // 2) 轨道顶部拐进主面板：中间插一个弧顶点，别让球直挺挺地斜线飞过去
+  ball.style.transitionDuration = '.14s';
+  const top = railTopXY(), entry = boardPt(ENTRY_X, ENTRY_Y);
+  placeBall({ x:(top.x+entry.x)/2, y:Math.min(top.y, entry.y)-12 });
+  await wait(150);
+  placeBall(entry);
+  await wait(150);
+
+  // 3) 主面板内下落：沿钉子的每一排前进，中途带点抖动，最后一排精确落到目标出口
   const M = 8;
   for(let r=0;r<CFG.ROWS;r++){
     const y = M + r*(100-2*M)/(CFG.ROWS-1);
-    const yWhole = 25 + y*0.75;
+    const yPct = 25 + y*0.75;
     const last = r===CFG.ROWS-1;
     const t = (r+1)/CFG.ROWS;
-    let x = entryX + (colX(col)-entryX)*t;
-    if(!last) x += rnd(-2.4,2.4);                         // 中间几步带点抖动，别走成直线
-    else x = colX(col);                                    // 最后一排必须精确落到目标出口
-    ball.style.left = x+'%'; ball.style.top = yWhole+'%';
+    let xPct = ENTRY_X + (colX(col)-ENTRY_X)*t;
+    if(!last) xPct += rnd(-2.2,2.2);                     // 中间几步带点抖动，别走成直线
+    else xPct = colX(col);                                // 最后一排必须精确落到目标出口
+    placeBall(boardPt(xPct, yPct));
     (r%2 ? SFX.bounce : SFX.thud)();
     await wait(150);
   }
-  ball.style.left = colX(col)+'%'; ball.style.top = '100%';
+
+  // 4) 落进出口槽
+  placeBall(exitPt(col));
+  ball.classList.remove('spin');
   SFX.thud();
-  await wait(180);
-  ball.style.display = 'none';
+  await wait(200);
   exits[col].classList.add('landed');
 
+  await wait(500);
+  placeBallInstant(railRestXY());     // 球回到内轨里，安静等下一轮
   finish(win, G.mult, col);
 }
 
@@ -507,11 +575,8 @@ function toast(em,h,p){
 el('t_ok').onclick = ()=>{
   el('toast').classList.remove('show');
   clearLights(); uiRoundMult.textContent='--';
-  G.state='idle'; el('btnCoin').disabled = G.coins<CFG.BET;
-  el('btnStop').disabled = true;
+  G.state='idle'; setBtn('投 币', G.coins>=CFG.BET, 'coin');
 };
-el('btnCoin').onclick = insertCoin;
-el('btnStop').onclick = pressStop;
 
 /* ══════════════════════════════════════════════════════════════
    6. 自检：赔率必须跟亮灯数量对得上，倍率抽取必须均匀
@@ -534,11 +599,17 @@ window.__plinko = {CFG, G, pickRound, rollLanding};
     const expect = CFG.LIT_COUNT[m]/CFG.N_EXIT;
     const got = winByMult[m].win/winByMult[m].total;
     console.assert(Math.abs(got-expect)<0.02, `${m}× 命中率 ${(got*100).toFixed(1)}% 偏离预期 ${(expect*100).toFixed(1)}%`);
-    const pShare = multCount[m]/N;
-    console.assert(Math.abs(pShare-0.2)<0.01, `${m}× 抽取占比 ${(pShare*100).toFixed(1)}% 偏离预期 20%`);
+    const pShare = multCount[m]/N, expectShare = CFG.MULT_WEIGHTS[m]/MULT_WEIGHT_TOTAL;
+    console.assert(Math.abs(pShare-expectShare)<0.01,
+      `${m}× 抽取占比 ${(pShare*100).toFixed(1)}% 偏离预期 ${(expectShare*100).toFixed(1)}%`);
   }
-  console.log('[selfcheck] 弹弹珠赔率表：', CFG.MULTS.map(m=>
-    `${m}×=${(winByMult[m].win/winByMult[m].total*100).toFixed(1)}%`).join('  '));
+  // 权重必须严格递减：倍率越高越难摇到，这条不成立说明配错了
+  for(let i=1;i<CFG.MULTS.length;i++){
+    console.assert(CFG.MULT_WEIGHTS[CFG.MULTS[i]] <= CFG.MULT_WEIGHTS[CFG.MULTS[i-1]],
+      `MULT_WEIGHTS 没有随倍率递减：${CFG.MULTS[i-1]}×=${CFG.MULT_WEIGHTS[CFG.MULTS[i-1]]} < ${CFG.MULTS[i]}×=${CFG.MULT_WEIGHTS[CFG.MULTS[i]]}`);
+  }
+  console.log('[selfcheck] 弹弹珠 命中率(占比)：', CFG.MULTS.map(m=>
+    `${m}×=${(winByMult[m].win/winByMult[m].total*100).toFixed(1)}%(${(multCount[m]/N*100).toFixed(0)}%)`).join('  '));
 })();
 </script>
 </body>
