@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>赛博弹弹珠</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+:root{
+  --ground:#0b0910; --panel:#17111f; --panel-2:#1e1728;
+  --ink:#f5efe8; --dim:#9c8fa8; --dim-2:#6d6376;
+  --hot:#ff2e6a; --cyan:#3ee8ff; --gold:#ffcf4a; --violet:#8a63ff;
+  --frame:#c81249; --frame-dark:#6d0a29;
+  --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
+  font:14px/1.4 var(--cjk),-apple-system,sans-serif;
+  overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+.disp{font-family:"Bungee",var(--cjk),sans-serif}
+.num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
+     align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
+.brand{font-weight:800;letter-spacing:.18em;font-size:13px;
+  background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
+.stats{display:flex;gap:10px}
+.chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums;
+  backdrop-filter:blur(8px);font-size:12px}
+.chip b{color:var(--gold);font-size:14px}
+
+/* ---------- 舞台 ---------- */
+.stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  padding:64px 16px 108px}
+.pinball{
+  position:relative; width:min(94vw,460px);
+  background:linear-gradient(180deg,var(--frame),var(--frame-dark));
+  border-radius:22px; padding:14px; box-shadow:0 40px 90px -34px rgba(0,0,0,.8);
+}
+.pinball-inner{background:#120c1a; border-radius:14px; padding:16px 16px 20px; position:relative; overflow:hidden}
+.pinball-inner::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:150px;
+  background:radial-gradient(60% 100% at 50% 0%,rgba(255,230,190,.10),transparent 70%);
+  pointer-events:none;
+}
+
+.mult-row{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; position:relative; z-index:1}
+.mult{
+  border-radius:7px; padding:7px 0; text-align:center; font-family:"Chakra Petch",sans-serif;
+  font-weight:700; font-size:14px; color:var(--dim-2); border:1px solid rgba(255,255,255,.1);
+  background:linear-gradient(180deg,rgba(255,255,255,.04),transparent);
+  transition:color .12s, box-shadow .12s, border-color .12s;
+}
+.mult small{display:block; font-size:7.5px; font-weight:600; letter-spacing:.08em; margin-top:1px; opacity:.7}
+.mult.chase{color:var(--cyan); border-color:rgba(62,232,255,.5); box-shadow:0 0 14px -3px rgba(62,232,255,.7)}
+.mult.lock{color:var(--gold); border-color:rgba(255,207,74,.6);
+  box-shadow:inset 0 0 0 1px rgba(255,207,74,.4), 0 0 20px -3px rgba(255,207,74,.75)}
+
+.cab-body{display:flex; gap:10px; align-items:stretch; margin-top:12px; position:relative; z-index:1}
+.cab-main{flex:1; min-width:0; display:flex; flex-direction:column}
+
+.board{position:relative; height:216px; border-radius:8px; overflow:hidden;
+  background:linear-gradient(180deg,#1c1528,#120c1a 60%,#150f20);
+  border:1px solid rgba(255,255,255,.06);
+}
+.entry-path{position:absolute; top:2px; right:2px; width:70%; height:22%}
+.peg-field{position:absolute; left:0; right:0; bottom:0; height:75%}
+.peg{position:absolute; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff,#c6ced9 45%,#5a6270 100%);
+  box-shadow:0 2px 3px rgba(0,0,0,.5);
+}
+#fallBall{
+  position:absolute; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff,var(--gold) 55%,#a97300 100%);
+  box-shadow:0 0 12px 3px rgba(255,207,74,.55); z-index:2; display:none;
+  transition:left .17s cubic-bezier(.36,.2,.4,1), top .17s cubic-bezier(.36,.2,.4,1);
+}
+
+.exit-row{display:grid; grid-template-columns:repeat(15,minmax(0,1fr)); gap:2.5px; position:relative; z-index:1}
+.exit{height:34px; min-width:0; border-radius:5px 5px 2px 2px; display:flex; flex-direction:column;
+  align-items:center; justify-content:flex-end; gap:3px; padding-bottom:4px;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.32));
+  border:1px solid rgba(255,255,255,.07); border-top:none; position:relative;
+}
+.exit .dot{width:5.5px; height:5.5px; border-radius:50%; background:#3a3448; transition:background .12s,box-shadow .12s}
+.exit .exit-label{font-family:"Chakra Petch",sans-serif; font-size:7px; font-weight:700; color:transparent; line-height:1}
+.exit.chase .dot{background:var(--cyan); box-shadow:0 0 7px 2px rgba(62,232,255,.7)}
+.exit.lock{border-color:rgba(255,207,74,.4)}
+.exit.lock .dot{background:var(--gold); box-shadow:0 0 9px 3px rgba(255,207,74,.85)}
+.exit.lock .exit-label{color:var(--gold)}
+.exit.landed{outline:2px solid var(--ink); outline-offset:-2px}
+
+.readout-strip{display:flex; flex-wrap:wrap; gap:10px 16px; font-family:"Chakra Petch",sans-serif;
+  justify-content:center; margin-top:14px}
+.readout-strip div b{display:block; font-size:17px; color:var(--ink)}
+.readout-strip div small{font-size:8.5px; color:var(--dim); letter-spacing:.06em}
+
+.cab-lever{width:44px; display:flex; flex-direction:column; align-items:center; gap:8px}
+.cab-lever .rail{flex:1; width:11px; min-height:120px; border-radius:7px; background:#1c1424;
+  border:1px solid rgba(255,255,255,.1); position:relative; box-shadow:inset 0 3px 8px rgba(0,0,0,.55)}
+.cab-lever .rail::before{content:"";position:absolute; top:-3px; left:-24px; width:26px; height:16px;
+  border:2.5px solid rgba(255,255,255,.2); border-right:none; border-bottom:none; border-radius:13px 0 0 0}
+.cab-lever .power-fill{position:absolute; left:0; right:0; bottom:0; border-radius:0 0 6px 6px;
+  height:0%; background:linear-gradient(180deg,rgba(255,207,74,.1),rgba(255,207,74,.55));
+  transition:height .06s linear}
+.cab-lever .innerball{position:absolute; left:50%; bottom:5%; transform:translateX(-50%);
+  width:17px; height:17px; border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff,var(--gold) 55%,#a97300 100%);
+  box-shadow:0 0 10px 3px rgba(255,207,74,.5); transition:bottom .25s cubic-bezier(.16,.9,.3,1.1)}
+
+.plunger{position:absolute; right:0; bottom:12px; z-index:6; display:flex; align-items:center; touch-action:none}
+.plunger .cap{margin-right:6px; font-family:"Chakra Petch",sans-serif; font-size:8px; letter-spacing:.08em;
+  color:rgba(255,255,255,.55); white-space:nowrap}
+.plunger .rod{width:26px; height:6px; border-radius:3px; margin-right:-3px;
+  background:linear-gradient(90deg,#8a828e,#d8d3dc); box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.plunger .knob{width:38px; height:38px; border-radius:50%; cursor:grab;
+  background:radial-gradient(circle at 32% 28%,#ff9db3,var(--hot) 60%,#8f0031);
+  box-shadow:0 3px 8px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.15)}
+.plunger.charging .knob{cursor:grabbing}
+
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
+  padding:16px max(14px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:center;gap:20px;
+  background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
+.coin{width:88px;height:88px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
+  border:1px solid rgba(255,255,255,.2); font-family:inherit; color:#3a2600; cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+  box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4)}
+.coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
+.coin[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+.big{width:88px;height:88px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
+  border:1px solid rgba(255,255,255,.2); font-family:inherit; color:#fff; cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
+  box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45)}
+.big:active{transform:translateY(5px);box-shadow:0 0 0 #6b0022}
+.big[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+.hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#4d4757;
+  font-size:11px;z-index:4;pointer-events:none}
+
+/* ---------- 结算 ---------- */
+#toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
+  background:rgba(6,4,10,.62);backdrop-filter:blur(6px)}
+#toast.show{display:grid;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:22px;
+  background:linear-gradient(160deg,#241d33,#140f1e);border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.card .em{font-size:52px;line-height:1;margin-bottom:10px}
+.card h2{margin:0 0 6px;font-size:21px}
+.card p{margin:0 0 20px;color:var(--dim);font-size:13px}
+.card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;font-family:inherit;
+  background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d;cursor:pointer}
+
+@media (max-width:430px){
+  .stage{padding:56px 10px 96px}
+  .exit{height:28px}
+  .exit .exit-label{font-size:6px}
+}
+@media (prefers-reduced-motion:reduce){
+  #fallBall,.cab-lever .innerball{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="brand">赛博弹弹珠</div>
+  <div class="stats">
+    <div class="chip">币 <b id="coins">10</b></div>
+    <div class="chip">积分 <b id="score">0</b></div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="pinball">
+    <div class="pinball-inner">
+
+      <div class="mult-row" id="multRow">
+        <div class="mult" data-mult="2">2<small>×</small></div>
+        <div class="mult" data-mult="4">4<small>×</small></div>
+        <div class="mult" data-mult="6">6<small>×</small></div>
+        <div class="mult" data-mult="8">8<small>×</small></div>
+        <div class="mult" data-mult="10">10<small>×</small></div>
+      </div>
+
+      <div class="cab-body">
+        <div class="cab-main">
+          <div class="board" id="board">
+            <svg class="entry-path" viewBox="0 0 220 60" preserveAspectRatio="none">
+              <path d="M212 6 C 160 6, 90 14, 12 50" fill="none" stroke="rgba(255,255,255,.3)"
+                    stroke-width="2.4" stroke-dasharray="4 6" stroke-linecap="round"/>
+            </svg>
+            <div class="peg-field" id="pegField"></div>
+            <div id="fallBall"></div>
+          </div>
+
+          <div class="exit-row" id="exitRow"></div>
+
+          <div class="readout-strip">
+            <div><b class="num" id="roundMult">--</b><small>本局倍率</small></div>
+            <div><b class="num" id="powerReadout">--</b><small>拉杆力度</small></div>
+          </div>
+        </div>
+
+        <div class="cab-lever">
+          <div class="rail" id="leverRail">
+            <div class="power-fill" id="powerFill"></div>
+            <div class="innerball" id="innerBall"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="plunger" id="plunger">
+      <span class="cap">拉我发射</span>
+      <div class="rod"></div>
+      <div class="knob" id="plungerKnob"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <button class="coin" id="btnCoin">投 币</button>
+  <button class="big" id="btnStop" disabled>停 止</button>
+</div>
+<div class="hint">投币后按「停止」锁定倍率和出口，再拖右下角拉杆蓄力发射</div>
+
+<div id="toast"><div class="card">
+  <div class="em" id="t_em">🎯</div>
+  <h2 id="t_h">中了！</h2>
+  <p id="t_p"></p>
+  <button id="t_ok">再来一次</button>
+</div></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   0. 配置 + 状态
+   ══════════════════════════════════════════════════════════════ */
+const CFG = {
+  N_EXIT: 15, ROWS: 6,
+  MULTS: [2,4,6,8,10],
+  LIT_COUNT: {2:6, 4:4, 6:2, 8:1, 10:1},   // 倍率越高，留给玩家的出口越少
+  BET: 1,
+};
+const G = {
+  coins: 10, score: 0,
+  state: 'idle',      // idle | ready | charging | falling | settle
+  lit: new Set(), mult: null,
+};
+const el = id=>document.getElementById(id);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+
+const uiCoins=el('coins'), uiScore=el('score'), uiRoundMult=el('roundMult'), uiPower=el('powerReadout');
+
+/* ══════════════════════════════════════════════════════════════
+   1. 音效 —— 与抓娃娃机同一套程序化合成，复用是因为已经验证过好用
+   ══════════════════════════════════════════════════════════════ */
+const SFX = (()=>{
+  let ac=null, master=null;
+  const on = ()=>{ if(ac) return ac;
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value=.5; master.connect(ac.destination);
+    return ac; };
+  const tone=(f,d,type='square',g=.10,f2=null,delay=0)=>{ if(!ac) return;
+    const t=ac.currentTime+delay, o=ac.createOscillator(); o.type=type;
+    o.frequency.setValueAtTime(f,t);
+    if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(0,t);
+    gn.gain.linearRampToValueAtTime(g,t+.008);
+    gn.gain.exponentialRampToValueAtTime(1e-4,t+d);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t+d+.02); };
+  const noise=(d,g,lp,delay=0)=>{ if(!ac) return;
+    const n=Math.floor(ac.sampleRate*d), buf=ac.createBuffer(1,n,ac.sampleRate), ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=ac.createBufferSource(); s.buffer=buf;
+    const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp;
+    const gn=ac.createGain(); gn.gain.value=g;
+    s.connect(f); f.connect(gn); gn.connect(master);
+    s.start(ac.currentTime+delay); };
+  return {
+    unlock(){ on(); if(ac.state==='suspended') ac.resume(); },
+    coin(){ tone(760,.06,'square',.10); tone(1180,.10,'square',.09,null,.06); noise(.05,.05,3000,.0); },
+    tick(){ tone(1500,.025,'square',.035); },
+    lock(){ tone(660,.1,'square',.09,880); tone(990,.14,'square',.07,1320,.06); },
+    charge(v){ tone(120+v*180,.03,'sawtooth',.03+v*.03); },
+    launch(){ tone(180,.12,'sawtooth',.09,520); if(navigator.vibrate)navigator.vibrate(25); },
+    bounce(){ tone(rnd(300,420),.04,'triangle',.06); },
+    thud(){ noise(.16,.20,260); tone(72,.13,'sine',.13,48); },
+    win(mult){ const n=Math.min(6,2+Math.round(mult/2));
+      [523,659,784,1046,1318,1568].slice(0,n).forEach((f,i)=>tone(f,.16,'square',.10,null,i*.075));
+      noise(.5,.05,5200,.1); if(navigator.vibrate)navigator.vibrate([40,60,120]); },
+    fail(){ tone(340,.16,'sawtooth',.07,150); tone(230,.22,'sawtooth',.06,90,.13); },
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   2. 钉板 + 出口：均匀网格，间距对齐 15 个出口的宽度
+   ══════════════════════════════════════════════════════════════ */
+const pitch = 100 / CFG.N_EXIT;
+const colX = i => pitch/2 + i*pitch;               // 第 i 个出口（0 起）的中心 x%
+
+const pegField = el('pegField');
+{
+  const M = 8;
+  const frag = document.createDocumentFragment();
+  for(let r=0; r<CFG.ROWS; r++){
+    const y = M + r*(100-2*M)/(CFG.ROWS-1);
+    const even = r%2===0;
+    const n = even ? CFG.N_EXIT : CFG.N_EXIT-1;
+    for(let i=0;i<n;i++){
+      const x = even ? pitch/2+i*pitch : (i+1)*pitch;
+      const p = document.createElement('div');
+      p.className='peg'; p.style.left=x+'%'; p.style.top=y+'%';
+      frag.appendChild(p);
+    }
+  }
+  pegField.appendChild(frag);
+}
+const exitRow = el('exitRow');
+for(let i=0;i<CFG.N_EXIT;i++){
+  const e = document.createElement('div');
+  e.className='exit';
+  e.innerHTML = '<span class="dot"></span><span class="exit-label"></span>';
+  exitRow.appendChild(e);
+}
+const exits = [...exitRow.children];
+const multTiles = [...document.querySelectorAll('.mult')];
+
+/* ══════════════════════════════════════════════════════════════
+   3. 结果判定 —— 纯函数，跟动画完全分开，方便自检
+   ══════════════════════════════════════════════════════════════ */
+function pickRound(){
+  const mult = CFG.MULTS[Math.floor(Math.random()*CFG.MULTS.length)];
+  const need = CFG.LIT_COUNT[mult];
+  const lit = new Set();
+  while(lit.size < need) lit.add(Math.floor(Math.random()*CFG.N_EXIT));
+  return {mult, lit};
+}
+function rollLanding(lit){
+  // 命中率就是「亮灯出口数 / 15」——不是另外定的赔率表，跟灯位数量天然绑死
+  const win = Math.random() < (lit.size / CFG.N_EXIT);
+  const pool = [];
+  for(let i=0;i<CFG.N_EXIT;i++) if(lit.has(i)===win) pool.push(i);
+  const col = pool[Math.floor(Math.random()*pool.length)];
+  return {win, col};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   4. 跑马灯：投币后开始闪，拉杆一松就冻结在一次新摇的结果上
+   ══════════════════════════════════════════════════════════════ */
+let chaseTimer = null;
+function clearLights(){
+  multTiles.forEach(t=>t.classList.remove('chase','lock'));
+  exits.forEach(e=>{ e.classList.remove('chase','lock','landed'); e.querySelector('.exit-label').textContent=''; });
+}
+function chaseTick(){
+  multTiles.forEach(t=>t.classList.remove('chase'));
+  multTiles[Math.floor(Math.random()*multTiles.length)].classList.add('chase');
+  exits.forEach(e=>e.classList.remove('chase'));
+  const n = 2+Math.floor(Math.random()*2), idx=new Set();
+  while(idx.size<n) idx.add(Math.floor(Math.random()*CFG.N_EXIT));
+  idx.forEach(i=>exits[i].classList.add('chase'));
+  SFX.tick();
+}
+function startChase(){
+  clearLights(); uiRoundMult.textContent='--';
+  chaseTimer = setInterval(chaseTick, 110);
+}
+function stopChaseAndLock(){
+  clearInterval(chaseTimer); clearLights();
+  const {mult, lit} = pickRound();
+  G.mult = mult; G.lit = lit;
+  multTiles.forEach(t=>t.classList.toggle('lock', +t.dataset.mult===mult));
+  uiRoundMult.textContent = mult+'×';
+  exits.forEach((e,i)=>{
+    const on = lit.has(i);
+    e.classList.toggle('lock', on);
+    e.querySelector('.exit-label').textContent = on ? mult+'×' : '';
+  });
+  SFX.lock();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   5. 投币 / 拉杆蓄力 / 发射 / 掉落动画
+   ══════════════════════════════════════════════════════════════ */
+function insertCoin(){
+  SFX.unlock();
+  if(G.state!=='idle' || G.coins<CFG.BET) return;
+  G.coins -= CFG.BET; uiCoins.textContent = G.coins;
+  SFX.coin();
+  G.state = 'chasing';
+  el('btnCoin').disabled = true;
+  el('btnStop').disabled = false;
+  startChase();
+}
+function pressStop(){
+  if(G.state!=='chasing') return;
+  stopChaseAndLock();
+  G.state = 'locked';
+  el('btnStop').disabled = true;
+}
+
+const plunger = el('plunger'), plungerKnob = el('plungerKnob');
+const powerFill = el('powerFill'), innerBall = el('innerBall');
+const PULL_MAX = 46; // 拉杆最大行程 px
+let pullPid = null, pullStartY = 0, power = 0;
+
+function setPlunger(p){
+  power = clamp(p,0,1);
+  plungerKnob.style.transform = `translateX(${power*15}px)`;
+  powerFill.style.height = (power*100).toFixed(0)+'%';
+  uiPower.textContent = power>0.02 ? Math.round(power*100)+'%' : '--';
+}
+function resetPlunger(){ setPlunger(0); plunger.classList.remove('charging'); }
+
+plungerKnob.addEventListener('pointerdown', e=>{
+  if(G.state!=='locked') return;   // 必须先按「停止」锁定倍率和出口，才能拉杆发射
+  SFX.unlock();
+  pullPid = e.pointerId;
+  try{ plungerKnob.setPointerCapture(pullPid); }catch{}   // 极端情况下 capture 失败也不能挡住蓄力
+  pullStartY = e.clientY; plunger.classList.add('charging');
+  G.state = 'charging';
+  e.preventDefault();
+});
+plungerKnob.addEventListener('pointermove', e=>{
+  if(e.pointerId!==pullPid || G.state!=='charging') return;
+  const dy = e.clientY - pullStartY;              // 往下拉才蓄力，跟真实弹簧一致
+  const p = clamp(dy/PULL_MAX, 0, 1);
+  if(Math.abs(p-power)>0.02) SFX.charge(p);
+  setPlunger(p);
+  innerBall.style.bottom = (5 + p*35).toFixed(0)+'%';   // 蓄力时球先被压低一点点
+  e.preventDefault();
+});
+function pullEnd(e){
+  if(e.pointerId!==pullPid) return;
+  pullPid = null;
+  if(G.state!=='charging') return;
+  const p = power;
+  resetPlunger();
+  if(p < 0.08){ G.state='locked'; innerBall.style.bottom='6%'; return; }  // 拉太轻，当没拉，倍率和出口还锁着
+  doLaunch(p);
+}
+plungerKnob.addEventListener('pointerup', pullEnd);
+plungerKnob.addEventListener('pointercancel', pullEnd);
+
+async function doLaunch(p){
+  G.state = 'falling';
+  // 倍率和亮灯出口在「停止」那一下已经锁定了，这里只管让球落进哪个口
+  const {win, col} = rollLanding(G.lit);
+
+  SFX.launch();
+  innerBall.style.bottom = (10 + p*82).toFixed(0)+'%';   // 力度越大球在内轨弹得越高
+  await wait(260);
+
+  const ball = el('fallBall');
+  const boardH = el('board').clientHeight;
+  const entryX = colX(CFG.N_EXIT-1) + 3, entryY = 6;     // 从右上角入板口进来
+  ball.style.transition = 'none';
+  ball.style.left = entryX+'%'; ball.style.top = entryY+'%';
+  ball.style.display = 'block';
+  ball.getBoundingClientRect();                          // 强制回流，让下一帧的 transition 生效
+  ball.style.transition = '';
+
+  const M = 8;
+  for(let r=0;r<CFG.ROWS;r++){
+    const y = M + r*(100-2*M)/(CFG.ROWS-1);
+    const yWhole = 25 + y*0.75;
+    const last = r===CFG.ROWS-1;
+    const t = (r+1)/CFG.ROWS;
+    let x = entryX + (colX(col)-entryX)*t;
+    if(!last) x += rnd(-2.4,2.4);                         // 中间几步带点抖动，别走成直线
+    else x = colX(col);                                    // 最后一排必须精确落到目标出口
+    ball.style.left = x+'%'; ball.style.top = yWhole+'%';
+    (r%2 ? SFX.bounce : SFX.thud)();
+    await wait(150);
+  }
+  ball.style.left = colX(col)+'%'; ball.style.top = '100%';
+  SFX.thud();
+  await wait(180);
+  ball.style.display = 'none';
+  exits[col].classList.add('landed');
+
+  finish(win, G.mult, col);
+}
+
+function finish(win, mult, col){
+  G.state = 'settle';
+  if(win){
+    G.score += mult; uiScore.textContent = G.score;
+    SFX.win(mult);
+    toast('🎯', `中了 ${mult}×！`, `从第 ${col+1} 号口出局，落在亮灯出口上`);
+  }else{
+    SFX.fail();
+    toast('💢', '差一点…', `从第 ${col+1} 号口出局，没落在这局的亮灯出口上`);
+  }
+}
+function toast(em,h,p){
+  el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
+  el('toast').classList.add('show');
+}
+el('t_ok').onclick = ()=>{
+  el('toast').classList.remove('show');
+  clearLights(); uiRoundMult.textContent='--';
+  G.state='idle'; el('btnCoin').disabled = G.coins<CFG.BET;
+  el('btnStop').disabled = true;
+};
+el('btnCoin').onclick = insertCoin;
+el('btnStop').onclick = pressStop;
+
+/* ══════════════════════════════════════════════════════════════
+   6. 自检：赔率必须跟亮灯数量对得上，倍率抽取必须均匀
+   ══════════════════════════════════════════════════════════════ */
+window.__plinko = {CFG, G, pickRound, rollLanding};
+(function selfCheck(){
+  const N = 200000;
+  const multCount = {}; CFG.MULTS.forEach(m=>multCount[m]=0);
+  const winByMult = {}; CFG.MULTS.forEach(m=>winByMult[m]={win:0,total:0});
+  let badCol = 0;
+  for(let i=0;i<N;i++){
+    const {mult, lit} = pickRound();
+    multCount[mult]++;
+    const {win, col} = rollLanding(lit);
+    winByMult[mult].total++; if(win) winByMult[mult].win++;
+    if(col<0 || col>=CFG.N_EXIT || !Number.isInteger(col)) badCol++;
+  }
+  console.assert(badCol===0, `出口序号越界 ${badCol} 次`);
+  for(const m of CFG.MULTS){
+    const expect = CFG.LIT_COUNT[m]/CFG.N_EXIT;
+    const got = winByMult[m].win/winByMult[m].total;
+    console.assert(Math.abs(got-expect)<0.02, `${m}× 命中率 ${(got*100).toFixed(1)}% 偏离预期 ${(expect*100).toFixed(1)}%`);
+    const pShare = multCount[m]/N;
+    console.assert(Math.abs(pShare-0.2)<0.01, `${m}× 抽取占比 ${(pShare*100).toFixed(1)}% 偏离预期 20%`);
+  }
+  console.log('[selfcheck] 弹弹珠赔率表：', CFG.MULTS.map(m=>
+    `${m}×=${(winByMult[m].win/winByMult[m].total*100).toFixed(1)}%`).join('  '));
+})();
+</script>
+</body>
+</html>
