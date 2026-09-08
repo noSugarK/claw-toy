@@ -8,8 +8,13 @@
 <style>
   :root{
     --ink:#f5f2ee; --dim:#a79f97;
-    --hot:#ff2e6a; --gold:#ffcf4a; --cyan:#3ee8ff;
+    --hot:#ff2e6a; --gold:#ffcf4a; --cyan:#3ee8ff; --violet:#8a63ff;
     --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
+    /* 与大厅一致的液态玻璃质感令牌 */
+    --glass-bg: rgba(255,255,255,.08);
+    --glass-bg-strong: rgba(255,255,255,.13);
+    --glass-border: rgba(255,255,255,.18);
+    --glass-shadow: 0 1px 0 rgba(255,255,255,.14) inset, 0 14px 34px -14px rgba(0,0,0,.6);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;background:#0b0910;color:var(--ink);
@@ -19,24 +24,40 @@
   .disp{font-family:"Bungee",var(--cjk),sans-serif}
   .num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
 
+  /* ---------- 环境光斑：呼应大厅液态玻璃背景，只叠一层柔光不抢戏 ---------- */
+  .ambient{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;opacity:.6;
+    background:
+      radial-gradient(40vmax 40vmax at -8vmax -10vmax, var(--hot), transparent 60%),
+      radial-gradient(36vmax 36vmax at 108vw -8vmax, var(--cyan), transparent 60%),
+      radial-gradient(32vmax 32vmax at -6vmax 108vh, var(--gold), transparent 62%);
+    animation:ambientDrift 28s ease-in-out infinite;
+  }
+  @keyframes ambientDrift{0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(1.6vmax,-1.4vmax) scale(1.05)}}
+  @media (prefers-reduced-motion:reduce){ .ambient{animation:none} }
+
   /* ---------- HUD ---------- */
   .hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
        align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
   .hud-left{display:flex;align-items:center;gap:9px}
   .backbtn{pointer-events:auto;width:28px;height:28px;border-radius:50%;flex:0 0 auto;
     display:grid;place-items:center;text-decoration:none;color:var(--ink);font-size:14px;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
-    box-shadow:0 4px 12px rgba(0,0,0,.35);transition:transform .15s,background .15s}
-  .backbtn:active{transform:scale(.9);background:rgba(255,255,255,.14)}
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+    box-shadow:var(--glass-shadow);transition:transform .15s,background .15s}
+  .backbtn:active{transform:scale(.9);background:var(--glass-bg-strong)}
   .brand{font-family:"Bungee",var(--cjk),sans-serif;letter-spacing:.06em;font-size:13px;
     background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
     background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
   .stats{display:flex;gap:10px}
-  .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  .chip{background:var(--glass-bg);border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+    box-shadow:var(--glass-shadow);
     border-radius:999px;padding:5px 11px;font-size:12px}
   .chip b{font-family:"Chakra Petch",var(--cjk),sans-serif;font-variant-numeric:tabular-nums;
-    color:var(--gold);font-size:14px;font-weight:700}
+    color:var(--gold);font-size:14px;font-weight:700;display:inline-block}
   #timer.warn b{color:var(--hot)}
+  .bump{animation:bump .34s cubic-bezier(.3,1.4,.4,1)}
+  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}}
 
   /* ---------- 控制台 ---------- */
   .panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
@@ -46,9 +67,12 @@
   /* 遥感：拉杆式模拟摇杆，推多远走多快，前后左右一根手指同时给 */
   .joystick{
     width:104px;height:104px;border-radius:50%;flex:0 0 auto;position:relative;touch-action:none;
-    background:radial-gradient(circle at 34% 28%,#241d2f,#120e18 72%);
-    border:1px solid rgba(255,255,255,.14);
-    box-shadow:inset 0 6px 14px rgba(0,0,0,.65),inset 0 -2px 4px rgba(255,255,255,.04),0 10px 20px rgba(0,0,0,.5);
+    background:
+      radial-gradient(circle at 34% 28%,rgba(255,255,255,.10),transparent 45%),
+      rgba(20,16,28,.45);
+    -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%);
+    border:1px solid var(--glass-border);
+    box-shadow:inset 0 6px 14px rgba(0,0,0,.5),inset 0 -2px 4px rgba(255,255,255,.05),0 10px 20px rgba(0,0,0,.45);
   }
   .joystick::before{ /* 行程环，提示能推多远 */
     content:"";position:absolute;inset:14px;border-radius:50%;border:1px dashed rgba(255,255,255,.1);
@@ -70,15 +94,18 @@
     font-size:19px;display:grid;place-items:center;transition:transform .05s,box-shadow .05s}
   .key:active,.key.on{transform:translateY(3px);box-shadow:0 0 0 #0d0a12,0 2px 10px rgba(0,0,0,.6);
     background:linear-gradient(#3a3348,#241f30)}
-  .big{width:92px;height:92px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
-    border:1px solid rgba(255,255,255,.2);
-    background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
+  .big,.coin{position:relative;overflow:hidden;width:92px;height:92px;border-radius:50%;
+    font-size:14px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
+    transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s}
+  .big::before,.coin::before{ /* 玻璃高光弧，转出「liquid glass」按钮的统一识别 */
+    content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;
+    background:linear-gradient(160deg,rgba(255,255,255,.55),transparent 42%);
+    mix-blend-mode:overlay;opacity:.8}
+  .big{background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
     box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45);color:#fff}
   .big:active,.big.on{transform:translateY(5px);box-shadow:0 0 0 #6b0022,0 4px 14px rgba(201,0,63,.4)}
   .big[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
-  .coin{width:92px;height:92px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
-    border:1px solid rgba(255,255,255,.2);
-    background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+  .coin{background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
     box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4);color:#3a2600}
   .coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
   .big,.coin{flex:0 0 auto}          /* 不加会被 flex 压成椭圆 */
@@ -94,22 +121,35 @@
 
   /* ---------- 结算 ---------- */
   #toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
-    background:rgba(6,4,10,.62);backdrop-filter:blur(6px)}
-  #toast.show{display:grid;animation:fade .2s}
+    background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
+  #toast.show{display:grid;animation:fade .22s}
   @keyframes fade{from{opacity:0}}
-  .card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:22px;
-    background:linear-gradient(160deg,#241d33,#140f1e);border:1px solid rgba(255,255,255,.14);
-    box-shadow:0 24px 60px rgba(0,0,0,.6)}
+  .card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+    background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));
+    border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+    box-shadow:var(--glass-shadow), 0 30px 70px -20px rgba(0,0,0,.65);
+    animation:cardIn .36s cubic-bezier(.2,.8,.2,1)}
+  @keyframes cardIn{from{opacity:0;transform:scale(.9) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
   .card .em{font-size:52px;line-height:1;margin-bottom:10px}
   .card h2{margin:0 0 6px;font-size:21px}
   .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
   .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;
     background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d}
 
+  /* ---------- 五彩纸屑：中奖反馈 ---------- */
+  .confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
+    pointer-events:none;animation:confettiFall 1.15s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes confettiFall{
+    0%{transform:translate(0,0) rotate(0deg);opacity:1}
+    100%{transform:translate(calc(var(--dx,0) * 130px),68vh) rotate(720deg);opacity:0}
+  }
+
   /* ---------- 调试 ---------- */
   #dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
-    background:rgba(14,11,20,.9);border:1px solid rgba(255,255,255,.12);border-radius:12px;
-    padding:10px 12px;backdrop-filter:blur(10px)}
+    background:var(--glass-bg-strong);border:1px solid var(--glass-border);border-radius:14px;
+    padding:10px 12px;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+    box-shadow:var(--glass-shadow)}
   #dev.hid>*:not(.dh){display:none}
   .dh{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
     font-weight:700;color:var(--cyan);letter-spacing:.05em}
@@ -124,6 +164,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
+<div class="ambient"></div>
 
 <div class="hud">
   <div class="hud-left">
@@ -196,6 +237,16 @@ CFG.HOLE.x = -CFG.W + HR;   // 嵌在左前角，两条边就是柜壁
 CFG.HOLE.z =  CFG.D  - HR;
 const CLAW_HOME = {x:CFG.HOLE.x, z:CFG.HOLE.z};
 console.assert(CFG.LIMIT >= Math.abs(CFG.HOLE.x), '行程限位到不了出货口，爪没法归位');
+
+// 爪牙张角与娃娃半径的几何换算（正向运动学，见下方 GRIP_OPEN 注释）：
+// setClawOpen(o) 里三段铰链的合成半径 r(o) ≈ 0.02 + 0.070·sin(0.10+0.52o) + 0.048·sin(0.92o-0.48)。
+// 想让爪尖停在娃娃表面（半径 ≈CFG.DR）而不是整个插进娃娃里，必须解出对应的 o —— 算出来 o≈0.8，
+// 而不是直觉以为的"抓稳=接近闭合(o→0)"。之前版本一直闭合到 o≈0，等于让爪尖穿透娃娃到中心去了。
+const GRIP_OPEN = 0.80;     // 稳稳夹住娃娃时的张角：爪尖刚好贴着娃娃表面，不会插进去
+const RELEASE_OPEN = 0.97;  // 打滑/松手过程中张角的上限：比夹持态更开，视觉上看得出"松开了"
+// 抓到手的娃娃挂在爪心正下方多少米。必须盖过爪壳(housing)半高 0.018 再加娃娃半径，
+// 否则娃娃顶部会露在爪壳里面，看起来像穿模到金属壳里去了。
+const HOLD_DROP = 0.085;
 
 /* ══════════════════════════════════════════════════════════════
    1. 音效 —— WebAudio 程序化合成，零资源文件
@@ -289,7 +340,9 @@ const M = (c,r=.6,m=.1,o={}) => new THREE.MeshStandardMaterial({color:c,roughnes
 
 /* ---- 柜体 ---- */
 const cab = new THREE.Group(); scene.add(cab);
-const frameMat = M(0xd8143f,.42,.35), trimMat = M(0xffcf4a,.35,.6);
+const frameMat = M(0xd8143f,.42,.35);
+// 金色装饰件加一层清漆，呼应大厅"液态玻璃"的高光质感
+const trimMat = new THREE.MeshPhysicalMaterial({color:0xffcf4a,roughness:.32,metalness:.55,clearcoat:1,clearcoatRoughness:.15});
 
 // 底座：四块围板，不能用实心盒 —— 顶面会把出货口封死
 for(const [w,d,x,z] of [[1.04,.05,0,.495],[1.04,.05,0,-.495],[.05,1.04,.495,0],[.05,1.04,-.495,0]]){
@@ -378,7 +431,8 @@ cab.add(cable);
 
 // 爪（独立挂在 cab 下，位置由钟摆物理决定，不是父子刚连）
 const claw = new THREE.Group(); cab.add(claw);
-const clawMat = M(0xdfe6ef,.25,.92);
+// 钢爪用清漆材质：跟大厅同一套"liquid glass"的高光语言，光下会有一圈玻璃感反光
+const clawMat = new THREE.MeshPhysicalMaterial({color:0xdfe6ef,roughness:.20,metalness:.85,clearcoat:1,clearcoatRoughness:.08});
 const housing = new THREE.Mesh(new THREE.CylinderGeometry(.030,.038,.036,14), clawMat);
 housing.castShadow = true; claw.add(housing);
 const collar = new THREE.Mesh(new THREE.CylinderGeometry(.020,.020,.022,12), trimMat);
@@ -440,14 +494,16 @@ st9(HR,.17,.01, CFG.HOLE.x,-.17,CFG.HOLE.z-HR-.01);
 st9(HR,.17,.01, CFG.HOLE.x,-.17,CFG.HOLE.z+HR+.01);
 st9(HR+.01,.01,HR+.01, CFG.HOLE.x,-.35,CFG.HOLE.z);            // 滑道底
 
-// 爪的碰撞体：张开时只有中轴（细，从娃娃缝里插下去），夹紧时整只（粗）
+// 爪的碰撞体：张开时只有中轴（细，从娃娃缝里插下去），夹紧空爪时收成一小团；
+// 一旦真的夹住了娃娃，就直接按娃娃的体型撑开——爪+娃娃这一整团移动时才不会
+// 穿过旁边其它娃娃（held 的娃娃是运动学体，靠这颗球才能把邻居推开）。
 // 挂在爪心略上方，别在娃娃中心高度 —— 否则下爪时会把目标顶飞
 const clawShape = new CANNON.Sphere(0.020);
 const clawBody = new CANNON.Body({mass:0, type:CANNON.Body.KINEMATIC, shape:clawShape});
 clawBody.position.set(CLAW_HOME.x, CFG.RAIL-CFG.CABLE_UP+0.045, CLAW_HOME.z);  // 首帧别从原点跳过来
 world.addBody(clawBody);
-function setClawCollider(open){
-  clawShape.radius = 0.020 + (1-open)*0.028;
+function setClawCollider(open, holding){
+  clawShape.radius = holding ? CFG.DR*0.92 : 0.020 + (1-open)*0.028;
   clawShape.updateBoundingSphereRadius();
   clawBody.updateBoundingRadius();
 }
@@ -468,6 +524,11 @@ function makeDollMesh(color){
     const arm = new THREE.Mesh(new THREE.SphereGeometry(R*.30,10,8), mat);
     arm.position.set(s*R*.88, -R*.28, R*.24); arm.scale.set(.8,1,.8); g.add(arm);
   }
+  for(const s of [-1,1]){                                    // 小脚，补成一只坐姿完整的玩偶，不是没腿的半成品
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(R*.28,10,8), mat);
+    foot.position.set(s*R*.34, -R*.92, R*.34); foot.scale.set(.85,.62,1.05);
+    foot.castShadow = true; g.add(foot);
+  }
   const snout = new THREE.Mesh(new THREE.SphereGeometry(R*.30,12,10), M(0xfff4e4,.95,0));
   snout.position.set(0,-R*.10,R*.78); snout.scale.set(1.15,.85,.8); g.add(snout);
   const nose = new THREE.Mesh(new THREE.SphereGeometry(R*.075,8,8), M(0x2a2028,.6,0));
@@ -476,17 +537,41 @@ function makeDollMesh(color){
     const eye = new THREE.Mesh(new THREE.SphereGeometry(R*.075,10,10), M(0x241c22,.35,.1));
     eye.position.set(s*R*.27, R*.24, R*.80); g.add(eye);
   }
+  // 头顶一点高光，玩具绒毛在顶灯下常见的塑料光泽，免建环境贴图也显得有质感
+  const shine = new THREE.Mesh(new THREE.SphereGeometry(R*.11,8,8),
+    new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5}));
+  shine.position.set(R*.20, R*.42, R*.62); g.add(shine);
   return g;
+}
+
+/* ---- 接触阴影：娃娃脚下一枚柔化圆斑，离地越高越淡越小，帮玩家判断高度 ---- */
+const shadowTex = (()=>{
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(0,0,0,.5)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+})();
+function makeDollShadow(){
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(CFG.DR*2.2, CFG.DR*2.2),
+    new THREE.MeshBasicMaterial({map:shadowTex, transparent:true, depthWrite:false}));
+  m.rotation.x = -Math.PI/2;
+  return m;
 }
 const dolls = [];
 function spawnDolls(){
-  for(const d of dolls){ world.removeBody(d.body); cab.remove(d.mesh); }
+  for(const d of dolls){ world.removeBody(d.body); cab.remove(d.mesh); cab.remove(d.shadow); }
   dolls.length = 0;
   for(let i=0;i<CFG.DOLLS;i++){
     const color = PALETTE[i % PALETTE.length];
     const mesh = makeDollMesh(color); cab.add(mesh);
+    const shadow = makeDollShadow(); cab.add(shadow);
     const body = new CANNON.Body({
-      mass: CFG.DMASS, shape: new CANNON.Sphere(CFG.DR*0.94),
+      // 半径贴近实际模型的最大半径（耳朵/口鼻会探出球体一点），碰撞体太小
+      // 会让这些凸出部分穿墙、穿爪、互相穿模
+      mass: CFG.DMASS, shape: new CANNON.Sphere(CFG.DR*1.05),
       linearDamping:.30, angularDamping:.55 });
     // 撒在中后部，别一开始就堆在出货口
     body.position.set(
@@ -495,7 +580,7 @@ function spawnDolls(){
       -0.22 + Math.random()*0.44);
     body.quaternion.setFromEuler(Math.random()*3, Math.random()*6, Math.random()*3);
     world.addBody(body);
-    dolls.push({mesh, body, taken:false, gone:false, color});
+    dolls.push({mesh, shadow, body, taken:false, gone:false, color});
   }
   // 预沉降期间给出货口盖个盖子，否则会有娃娃自己滚进去，开局白送
   const lid = st9(.10,.01,.10, CFG.HOLE.x,-.01,CFG.HOLE.z);
@@ -539,11 +624,34 @@ const uiCoins=el('coins'), uiWon=el('won'), uiTimer=el('timer'),
 function log(s){ uiLog.textContent = s; }
 function setState(s){ G.state = s; G.t = 0; }
 
+/* ---- 数字变化时的跳动反馈，比直接改 textContent 更有"手感" ---- */
+function setNum(elm, val){
+  elm.textContent = val;
+  elm.classList.remove('bump'); void elm.offsetWidth; elm.classList.add('bump');
+}
+/* ---- 五彩纸屑：中奖那一下的视觉爆点 ---- */
+function confetti(n=20){
+  const colors=['var(--hot)','var(--gold)','var(--cyan)','var(--violet)','#fff'];
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');
+    s.className='confetti-bit';
+    s.style.left=(42+Math.random()*16)+'%';
+    s.style.setProperty('--dx',(Math.random()*2-1).toFixed(2));
+    s.style.background=colors[i%colors.length];
+    s.style.animationDelay=(Math.random()*.18)+'s';
+    document.body.appendChild(s);
+    s.addEventListener('animationend',()=>s.remove());
+  }
+}
+/* ---- 相机震动：命中/落地时的一点手感反馈，衰减很快，别晃得人晕 ---- */
+let camShake = 0;
+function kickShake(v){ camShake = Math.max(camShake, v); }
+
 /* ---- 投币 ---- */
 function insertCoin(){
   SFX.unlock();
   if(G.state!=='idle' || G.coins<=0) return;
-  G.coins--; uiCoins.textContent = G.coins;
+  G.coins--; setNum(uiCoins, G.coins);
   SFX.coin();
 
   // 上一局掉出去的娃娃这时才补进场，避免玩家眼前凭空刷新
@@ -582,7 +690,7 @@ function closeAndGrab(){
     if(d.gone) continue;
     const p = d.body.position;
     const hd = Math.hypot(p.x-G.cx, p.z-G.cz);
-    const dy = p.y - (clawY() - 0.055);          // 娃娃中心 vs 爪心下方
+    const dy = p.y - (clawY() - HOLD_DROP);      // 娃娃中心 vs 爪心下方
     if(hd < CFG.DR*1.05 && dy > -0.055 && dy < 0.055 && hd < bd){ bd=hd; best=d; }
   }
   if(!best){                                     // 空爪 —— 瞄歪了，跟概率无关
@@ -622,6 +730,7 @@ function closeAndGrab(){
     }
   }
   SFX.close();
+  kickShake(.006);
 }
 
 /* ---- 松爪 / 打滑 ---- */
@@ -694,14 +803,16 @@ function step(dt){
     for(const d of dolls){
       if(d.gone) continue;
       const p = d.body.position;
-      if(Math.hypot(p.x-G.cx, p.z-G.cz) < 0.075) stopY = Math.max(stopY, p.y + 0.055);
+      if(Math.hypot(p.x-G.cx, p.z-G.cz) < 0.075) stopY = Math.max(stopY, p.y + HOLD_DROP);
     }
     G.cable = Math.min(CFG.RAIL - stopY, G.cable + CFG.DOWN_V*dt);
     if(clawY() <= stopY + 1e-3){ SFX.winch(0); setState('close'); }
   }
 
   if(s==='close'){
-    G.open = 1 - Math.min(1, G.t/0.42);
+    // 闭合目标：抓到手就停在 GRIP_OPEN（贴着娃娃表面），没抓到才收到底
+    const closeTo = G.grabTried && G.held ? GRIP_OPEN : 0;
+    G.open = 1 + (closeTo-1) * Math.min(1, G.t/0.42);
     // 判定要在闭合"开始"时做：爪牙合拢过程会挤动娃娃，等合完再判就抓不到了
     if(!G.grabTried){ closeAndGrab(); G.grabTried = true; }
     if(G.t>=0.62){ SFX.winch(1); setState('lift'); }
@@ -710,15 +821,18 @@ function step(dt){
   if(s==='lift'){
     const p = 1 - (G.cable-CFG.CABLE_UP)/(CFG.RAIL-CFG.FLOOR_CLR-CFG.CABLE_UP);
     G.cable = Math.max(CFG.CABLE_UP, G.cable - CFG.UP_V*dt);
-    // 弱爪力：抖爪 + 缓慢张开，这就是"爪子一软"
+    // 弱爪力：抖爪 + 缓慢张开，这就是"爪子一软"。基准是 GRIP_OPEN（贴着娃娃），
+    // 不是 0 —— 闭到 0 会让爪尖穿过娃娃表面插进娃娃里，参见 GRIP_OPEN 定义处的注释。
     console.assert(!(G.held && G.willWin && G.slipPhase!=='none'),
       '命中局却走了打滑分支', G.slipPhase, G.slipAt);
     if(G.held && G.slipPhase==='lift'){
       G.grip = Math.max(0, 1 - p/G.slipAt);
-      G.open = (1-G.grip)*0.22 + Math.sin(G.t*46)*0.012*(1-G.grip);
+      G.open = GRIP_OPEN + (1-G.grip)*(RELEASE_OPEN-GRIP_OPEN) + Math.sin(G.t*46)*0.012*(1-G.grip);
       if(p >= G.slipAt){ SFX.open(); releaseHeld(true); SFX.clatter(); }
     }else if(G.held && G.slipPhase!=='none'){
-      G.open = 0.035 + Math.sin(G.t*30)*0.010;    // 夹住但一直在颤
+      G.open = GRIP_OPEN + Math.sin(G.t*30)*0.010;    // 夹住但一直在颤
+    }else if(G.held){
+      G.open = GRIP_OPEN;                             // 稳稳夹住，命中局的从容一握
     }else{
       G.open = 0;
     }
@@ -734,7 +848,7 @@ function step(dt){
       // 快到释放点时爪力渐松，抖得越来越明显 —— edge 就是拖到出货口边上才掉的那种
       const loose = clamp(1 - (gap - G.slipAt)/0.18, 0, 1);
       G.grip = 1 - loose;
-      G.open = loose*0.20 + Math.sin(G.t*44)*0.013*loose;
+      G.open = GRIP_OPEN + loose*(RELEASE_OPEN-GRIP_OPEN) + Math.sin(G.t*44)*0.013*loose;
       if(gap <= G.slipAt){ SFX.open(); releaseHeld(true); SFX.clatter(); }
     }
     // 等摆动停下来才松爪；G.t 是兜底，任何调参都不许让机器卡死
@@ -743,12 +857,15 @@ function step(dt){
       // 不变量：未中的娃娃必须在到达出货口前就已经打滑掉落
       console.assert(!(G.held && G.slipPhase!=='none'),
         '爪力衰减没触发，未中局会被误判为中奖', G.slipPhase, G.slipAt);
-      SFX.open(); setState('open');
+      SFX.open(); G.openStart = G.open; setState('open');
     }
   }
 
   if(s==='open'){
-    G.open = Math.min(1, G.t/0.30);
+    // 从进入这个状态时爪牙实际所在的张角起步，不能直接跳回 0 再张开——
+    // 命中局这时候还是 GRIP_OPEN（贴着娃娃），跳变一下会像"猛地一夹再松开"。
+    const from = G.openStart ?? 0;
+    G.open = from + (1-from) * Math.min(1, G.t/0.30);
     if(G.t>0.12 && G.held) releaseHeld(false);
     if(G.t>=0.9) setState('settle');
   }
@@ -778,13 +895,13 @@ function step(dt){
     clamp((ty-clawPrev.y)/dt, -VMAX, VMAX),
     clamp((tz-clawPrev.z)/dt, -VMAX, VMAX));
   clawPrev.set(tx, ty, tz);
-  setClawCollider(G.open);
+  setClawCollider(G.open, !!G.held);
 
   if(G.held){                                     // 夹住的娃娃跟着爪走
     // 提升过程中偏心量收敛到爪心：偏着到出货口上方松手会落在口沿上，中奖局兑现不了
     G.holdOff.multiplyScalar(1 - Math.min(1, 3*dt));
     const b = G.held.body;
-    b.position.set(G.cx + G.holdOff.x, cy - 0.055, G.cz + G.holdOff.z);
+    b.position.set(G.cx + G.holdOff.x, cy - HOLD_DROP, G.cz + G.holdOff.z);
     b.velocity.set(clawBody.velocity.x, clawBody.velocity.y, clawBody.velocity.z);
   }
 
@@ -793,6 +910,17 @@ function step(dt){
   for(const d of dolls){
     d.mesh.position.copy(d.body.position);
     d.mesh.quaternion.copy(d.body.quaternion);
+    // 阴影跟着投影位置走，离地越高越小越淡，出货/正被抓走时藏起来
+    if(d.gone || G.held===d){
+      d.shadow.visible = false;
+    }else{
+      d.shadow.visible = true;
+      const height = Math.max(0, d.body.position.y);
+      const k = clamp(1 - height*1.6, .22, 1);
+      d.shadow.position.set(d.body.position.x, 0.003, d.body.position.z);
+      d.shadow.scale.setScalar(k);
+      d.shadow.material.opacity = .5*k;
+    }
     if(d.gone) continue;
     const p = d.body.position;
     // 只有落在滑道范围内才算到手。单看 y 会把穿模掉到柜外的娃娃误判成中奖。
@@ -841,9 +969,11 @@ function finish(){
   const gotOne = dolls.some(d=>d.gone && !d.counted);
   if(gotOne){
     for(const d of dolls) if(d.gone && !d.counted){ d.counted=true; G.won++; }
-    uiWon.textContent = G.won;
+    setNum(uiWon, G.won);
     G.lossStreak = 0;
     SFX.win();
+    kickShake(.014);
+    confetti();
     toast('🧸','抓到了！','娃娃已滑进出货口');
   }else{
     G.lossStreak++;
@@ -922,7 +1052,7 @@ el('s_pity').oninput = e=>{ CFG.pityAfter = +e.target.value; el('v_pity').textCo
 el('s_slip').oninput = e=>{ CFG.slipMode = +e.target.value;
   el('v_slip').textContent = ['温柔','正常','阴间'][e.target.value]; };
 el('b_reset').onclick = ()=>{ if(G.state==='idle') spawnDolls(); };
-el('b_free').onclick = ()=>{ G.coins += 10; uiCoins.textContent = G.coins; SFX.coin(); };
+el('b_free').onclick = ()=>{ G.coins += 10; setNum(uiCoins, G.coins); SFX.coin(); };
 
 /* ══════════════════════════════════════════════════════════════
    7. 主循环
@@ -948,7 +1078,9 @@ renderer.setAnimationLoop(()=>{
   step(dt);
 
   px += (tx-px)*.06; py += (ty-py)*.06;
-  camera.position.set(camBase.x + px*.14, camBase.y - py*.10, camBase.z);
+  camShake *= Math.exp(-6*dt);                    // 很快衰减，别晃到眩晕
+  const sx = (Math.random()*2-1)*camShake, sy = (Math.random()*2-1)*camShake;
+  camera.position.set(camBase.x + px*.14 + sx, camBase.y - py*.10 + sy, camBase.z);
   camera.lookAt(CAM_AT);
   renderer.render(scene, camera);
 });

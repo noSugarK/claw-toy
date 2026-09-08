@@ -12,6 +12,11 @@
   --hot:#ff2e6a; --cyan:#3ee8ff; --gold:#ffcf4a; --violet:#8a63ff;
   --frame:#c81249; --frame-dark:#6d0a29;
   --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
+  /* 与大厅一致的液态玻璃质感令牌 */
+  --glass-bg: rgba(255,255,255,.08);
+  --glass-bg-strong: rgba(255,255,255,.13);
+  --glass-border: rgba(255,255,255,.18);
+  --glass-shadow: 0 1px 0 rgba(255,255,255,.14) inset, 0 14px 34px -14px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
@@ -20,26 +25,41 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .disp{font-family:"Bungee",var(--cjk),sans-serif}
 .num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
 
+/* ---------- 环境光斑：呼应大厅液态玻璃背景 ---------- */
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;mix-blend-mode:soft-light;opacity:.6;
+  background:
+    radial-gradient(40vmax 40vmax at -8vmax -10vmax, var(--hot), transparent 60%),
+    radial-gradient(36vmax 36vmax at 108vw -8vmax, var(--cyan), transparent 60%),
+    radial-gradient(32vmax 32vmax at -6vmax 108vh, var(--gold), transparent 62%);
+  animation:ambientDrift 28s ease-in-out infinite;
+}
+@keyframes ambientDrift{0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(1.6vmax,-1.4vmax) scale(1.05)}}
+@media (prefers-reduced-motion:reduce){ .ambient{animation:none} }
+
 /* ---------- HUD ---------- */
 .hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
      align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
 .hud-left{display:flex;align-items:center;gap:9px}
 .backbtn{pointer-events:auto;width:28px;height:28px;border-radius:50%;flex:0 0 auto;
   display:grid;place-items:center;text-decoration:none;color:var(--ink);font-size:14px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
-  box-shadow:0 4px 12px rgba(0,0,0,.35);transition:transform .15s,background .15s}
-.backbtn:active{transform:scale(.9);background:rgba(255,255,255,.14)}
+  background:var(--glass-bg);border:1px solid var(--glass-border);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+  box-shadow:var(--glass-shadow);transition:transform .15s,background .15s}
+.backbtn:active{transform:scale(.9);background:var(--glass-bg-strong)}
 .brand{font-weight:800;letter-spacing:.18em;font-size:13px;
   background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
   background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
 .stats{display:flex;gap:10px}
-.chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+.chip{background:var(--glass-bg);border:1px solid var(--glass-border);
   border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums;
-  backdrop-filter:blur(8px);font-size:12px}
-.chip b{color:var(--gold);font-size:14px}
+  -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+  box-shadow:var(--glass-shadow);font-size:12px}
+.chip b{color:var(--gold);font-size:14px;display:inline-block}
+.bump{animation:bump .34s cubic-bezier(.3,1.4,.4,1)}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}}
 
 /* ---------- 舞台 ---------- */
-.stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+.stage{position:fixed; inset:0; z-index:1; display:flex; align-items:center; justify-content:center;
   padding:64px 16px 108px; perspective:1100px}
 .pinball{
   position:relative; width:min(94vw,460px); transform:rotateX(6deg); transform-origin:50% 100%;
@@ -62,8 +82,16 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 }
 .mult small{display:block; font-size:7.5px; font-weight:600; letter-spacing:.08em; margin-top:1px; opacity:.7}
 .mult.chase{color:var(--cyan); border-color:rgba(62,232,255,.5); box-shadow:0 0 14px -3px rgba(62,232,255,.7)}
-.mult.lock{color:var(--gold); border-color:rgba(255,207,74,.6);
+.mult.lock{color:var(--gold); border-color:rgba(255,207,74,.6); overflow:hidden;
   box-shadow:inset 0 0 0 1px rgba(255,207,74,.4), 0 0 20px -3px rgba(255,207,74,.75)}
+/* 锁定态扫一道玻璃高光，跟大厅卡片的液态玻璃语言呼应 */
+.mult.lock::after, .exit.lock::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 48%,transparent 66%);
+  background-size:220% 100%; background-position:120% 0;
+  animation:sheen 1.6s ease-in-out .1s 1;
+}
+@keyframes sheen{to{background-position:-40% 0}}
 
 .cab-body{display:flex; gap:10px; align-items:stretch; margin-top:12px; position:relative; z-index:1}
 .cab-main{flex:1; min-width:0; display:flex; flex-direction:column}
@@ -91,10 +119,12 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .ball.notransition{transition:none}
 .ball.spin{animation:ballspin .45s linear infinite}
 @keyframes ballspin{to{transform:rotate(360deg)}}
+.ball.squash{animation:squash .2s ease-out}
+@keyframes squash{40%{transform:scale(1.4,.6)}}
 
 .exit-row{display:grid; grid-template-columns:repeat(15,minmax(0,1fr)); gap:2.5px; position:relative; z-index:1}
 .exit{height:34px; min-width:0; border-radius:5px 5px 2px 2px; display:flex; flex-direction:column;
-  align-items:center; justify-content:flex-end; gap:3px; padding-bottom:4px;
+  align-items:center; justify-content:flex-end; gap:3px; padding-bottom:4px; overflow:hidden;
   background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.32));
   border:1px solid rgba(255,255,255,.07); border-top:none; position:relative;
 }
@@ -134,15 +164,18 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
   padding:16px max(14px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-bottom));
   display:flex;align-items:center;justify-content:center;gap:20px;
   background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
-.coin{width:88px;height:88px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
-  border:1px solid rgba(255,255,255,.2); font-family:inherit; color:#3a2600; cursor:pointer;
-  background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+.coin,.big{position:relative;overflow:hidden;width:88px;height:88px;border-radius:50%;
+  font-size:14px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
+  font-family:inherit;cursor:pointer;transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s}
+.coin::before,.big::before{ /* 玻璃高光弧，跟大厅/抓娃娃统一的按钮语言 */
+  content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;
+  background:linear-gradient(160deg,rgba(255,255,255,.55),transparent 42%);
+  mix-blend-mode:overlay;opacity:.8}
+.coin{color:#3a2600;background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
   box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4)}
 .coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
 .coin[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
-.big{width:88px;height:88px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.1em;
-  border:1px solid rgba(255,255,255,.2); font-family:inherit; color:#fff; cursor:pointer;
-  background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
+.big{color:#fff;background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
   box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45)}
 .big:active{transform:translateY(5px);box-shadow:0 0 0 #6b0022}
 .big[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
@@ -151,17 +184,36 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 
 /* ---------- 结算 ---------- */
 #toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
-  background:rgba(6,4,10,.62);backdrop-filter:blur(6px)}
-#toast.show{display:grid;animation:fade .2s}
+  background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
+#toast.show{display:grid;animation:fade .22s}
 @keyframes fade{from{opacity:0}}
-.card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:22px;
-  background:linear-gradient(160deg,#241d33,#140f1e);border:1px solid rgba(255,255,255,.14);
-  box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.card{width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+  background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));
+  border:1px solid var(--glass-border);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:var(--glass-shadow), 0 30px 70px -20px rgba(0,0,0,.65);
+  animation:cardIn .36s cubic-bezier(.2,.8,.2,1)}
+@keyframes cardIn{from{opacity:0;transform:scale(.9) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .card .em{font-size:52px;line-height:1;margin-bottom:10px}
 .card h2{margin:0 0 6px;font-size:21px}
 .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
 .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;font-family:inherit;
   background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d;cursor:pointer}
+
+/* ---------- 五彩纸屑 + 球的拖尾余晖 ---------- */
+.confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
+  pointer-events:none;animation:confettiFall 1.15s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes confettiFall{
+  0%{transform:translate(0,0) rotate(0deg);opacity:1}
+  100%{transform:translate(calc(var(--dx,0) * 130px),68vh) rotate(720deg);opacity:0}
+}
+.trail-bit{position:absolute;top:0;left:0;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;
+  border-radius:50%;pointer-events:none;z-index:8;
+  background:radial-gradient(circle,var(--gold),transparent 70%);
+  animation:trailFade .5s ease-out forwards}
+@keyframes trailFade{to{opacity:0;transform:scale(.4)}}
+.punch{animation:punch .3s ease-out}
+@keyframes punch{30%{transform:rotateX(6deg) scale(1.03)}}
 
 @media (max-width:430px){
   .stage{padding:56px 10px 96px}
@@ -170,11 +222,12 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 }
 @media (prefers-reduced-motion:reduce){
   .ball{transition:none}
-  .ball.spin{animation:none}
+  .ball.spin,.ball.squash,.punch,.confetti-bit,.trail-bit,.mult.lock::after,.exit.lock::after{animation:none}
 }
 </style>
 </head>
 <body>
+<div class="ambient"></div>
 
 <div class="hud">
   <div class="hud-left">
@@ -269,6 +322,26 @@ const rnd = (a,b)=>a+Math.random()*(b-a);
 const wait = ms=>new Promise(r=>setTimeout(r,ms));
 
 const uiCoins=el('coins'), uiScore=el('score'), uiRoundMult=el('roundMult'), uiPower=el('powerReadout');
+
+/* ---- 数字变化时的跳动反馈 ---- */
+function setNum(elm, val){
+  elm.textContent = val;
+  elm.classList.remove('bump'); void elm.offsetWidth; elm.classList.add('bump');
+}
+/* ---- 五彩纸屑：中奖那一下的视觉爆点，跟抓娃娃机共用同一套样式 ---- */
+function confetti(n=20){
+  const colors=['var(--hot)','var(--gold)','var(--cyan)','var(--violet)','#fff'];
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');
+    s.className='confetti-bit';
+    s.style.left=(42+Math.random()*16)+'%';
+    s.style.setProperty('--dx',(Math.random()*2-1).toFixed(2));
+    s.style.background=colors[i%colors.length];
+    s.style.animationDelay=(Math.random()*.18)+'s';
+    document.body.appendChild(s);
+    s.addEventListener('animationend',()=>s.remove());
+  }
+}
 
 /* ══════════════════════════════════════════════════════════════
    1. 音效 —— 与抓娃娃机同一套程序化合成，复用是因为已经验证过好用
@@ -417,7 +490,7 @@ function setBtn(label, enabled, kind){   // kind: 'coin'(金色) | 'stop'(红色
 function insertCoin(){
   SFX.unlock();
   if(G.state!=='idle' || G.coins<CFG.BET) return;
-  G.coins -= CFG.BET; uiCoins.textContent = G.coins;
+  G.coins -= CFG.BET; setNum(uiCoins, G.coins);
   SFX.coin();
   G.state = 'chasing';
   setBtn('停 止', true, 'stop');
@@ -464,6 +537,13 @@ function exitPt(i){
   return { x: o.x + er.width/2, y: o.y + 7 };
 }
 function placeBall(pt){ ball.style.left = pt.x+'px'; ball.style.top = pt.y+'px'; }
+function spawnTrail(pt){    // 掉落路径上留一点余晖，帮玩家看清球滚过的轨迹
+  const t = document.createElement('span');
+  t.className = 'trail-bit';
+  t.style.left = pt.x+'px'; t.style.top = pt.y+'px';
+  pinnerEl.appendChild(t);
+  t.addEventListener('animationend', ()=>t.remove());
+}
 function placeBallInstant(pt){
   ball.classList.add('notransition'); placeBall(pt);
   ball.getBoundingClientRect();               // 强制回流，避免下一次改动被并进这次的"无动画"里
@@ -549,7 +629,8 @@ async function doLaunch(p){
     let xPct = ENTRY_X + (colX(col)-ENTRY_X)*t;
     if(!last) xPct += rnd(-2.2,2.2);                     // 中间几步带点抖动，别走成直线
     else xPct = colX(col);                                // 最后一排必须精确落到目标出口
-    placeBall(boardPt(xPct, yPct));
+    const pt = boardPt(xPct, yPct);
+    placeBall(pt); spawnTrail(pt);
     (r%2 ? SFX.bounce : SFX.thud)();
     await wait(150);
   }
@@ -557,8 +638,10 @@ async function doLaunch(p){
   // 4) 落进出口槽
   placeBall(exitPt(col));
   ball.classList.remove('spin');
+  ball.classList.add('squash');
   SFX.thud();
   await wait(200);
+  ball.classList.remove('squash');
   exits[col].classList.add('landed');
 
   await wait(500);
@@ -569,8 +652,11 @@ async function doLaunch(p){
 function finish(win, mult, col){
   G.state = 'settle';
   if(win){
-    G.score += mult; uiScore.textContent = G.score;
+    G.score += mult; setNum(uiScore, G.score);
     SFX.win(mult);
+    document.querySelector('.pinball').classList.add('punch');
+    setTimeout(()=>document.querySelector('.pinball').classList.remove('punch'), 320);
+    confetti();
     toast('🎯', `中了 ${mult}×！`, `从第 ${col+1} 号口出局，落在亮灯出口上`);
   }else{
     SFX.fail();
