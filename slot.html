@@ -438,8 +438,12 @@ leverBall.addEventListener('pointercancel', leverEnd);
    ══════════════════════════════════════════════════════════════ */
 const strips = [el('strip0'), el('strip1'), el('strip2')];
 const reels = [el('reel0'), el('reel1'), el('reel2')];
-const SYM_H = 84;
 const FILLER = 22;   // 停下前滚过多少格，制造转动感
+// 符号格高不能写死成桌面端的 84px——< 400px 的手机断点里 CSS 把 .reel/.sym
+// 缩到了 70px，滚动距离却还按 84px 算，会滚过整条 strip 的实际长度，
+// 停在内容之外的空白处（看起来就是"转到一半突然黑屏"）。改成实时读取
+// 当前渲染出来的格子高度，无论哪个断点都对得上。
+function symbolHeight(stripEl){ return stripEl.firstElementChild.getBoundingClientRect().height; }
 
 function buildStrip(stripEl, finalSymbol){
   stripEl.style.transition = 'none';
@@ -457,11 +461,12 @@ function buildStrip(stripEl, finalSymbol){
 function spinStrip(stripEl, delay, duration){
   return new Promise(resolve=>{
     setTimeout(()=>{
+      const symH = symbolHeight(stripEl);
       const tickEvery = Math.max(40, duration/FILLER);
       let ticks = 0;
       const tickTimer = setInterval(()=>{ SFX.reelTick(); if(++ticks>=FILLER) clearInterval(tickTimer); }, tickEvery);
       stripEl.style.transition = `transform ${duration}ms cubic-bezier(.13,.85,.22,1)`;
-      stripEl.style.transform = `translateY(-${FILLER*SYM_H}px)`;
+      stripEl.style.transform = `translateY(-${FILLER*symH}px)`;
       setTimeout(()=>{ clearInterval(tickTimer); SFX.reelStop(); resolve(); }, duration);
     }, delay);
   });
