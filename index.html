@@ -4,28 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>赛博抓娃娃</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@500;600;700&display=swap">
 <style>
   :root{
     --ink:#f5f2ee; --dim:#a79f97;
     --hot:#ff2e6a; --gold:#ffcf4a; --cyan:#3ee8ff;
+    --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;background:#0b0910;color:var(--ink);
-    font:14px/1.4 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    font:14px/1.4 -apple-system,var(--cjk),system-ui,sans-serif;
     overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
   #cv{position:fixed;inset:0;display:block}
+  .disp{font-family:"Bungee",var(--cjk),sans-serif}
+  .num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
 
   /* ---------- HUD ---------- */
   .hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
        align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
-  .brand{font-weight:800;letter-spacing:.22em;font-size:13px;
+  .brand{font-family:"Bungee",var(--cjk),sans-serif;letter-spacing:.06em;font-size:13px;
     background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
     background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
   .stats{display:flex;gap:10px}
   .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-    border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums;
-    backdrop-filter:blur(8px);font-size:12px}
-  .chip b{color:var(--gold);font-size:14px}
+    border-radius:999px;padding:5px 11px;font-size:12px}
+  .chip b{font-family:"Chakra Petch",var(--cjk),sans-serif;font-variant-numeric:tabular-nums;
+    color:var(--gold);font-size:14px;font-weight:700}
   #timer.warn b{color:var(--hot)}
 
   /* ---------- 控制台 ---------- */
@@ -33,12 +37,27 @@
     padding:18px max(14px,env(safe-area-inset-left)) max(22px,env(safe-area-inset-bottom));
     display:flex;align-items:flex-end;justify-content:center;gap:20px;
     background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
-  .dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:5px}
-  .dpad button{grid-area:auto}
-  .dpad .up{grid-column:2;grid-row:1} .dpad .dn{grid-column:2;grid-row:3}
-  .dpad .lf{grid-column:1;grid-row:2} .dpad .rt{grid-column:3;grid-row:2}
-  .dpad .mid{grid-column:2;grid-row:2;border:none;background:none;pointer-events:none;
-    display:grid;place-items:center;color:#4a4450;font-size:10px}
+  /* 遥感：拉杆式模拟摇杆，推多远走多快，前后左右一根手指同时给 */
+  .joystick{
+    width:104px;height:104px;border-radius:50%;flex:0 0 auto;position:relative;touch-action:none;
+    background:radial-gradient(circle at 34% 28%,#241d2f,#120e18 72%);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:inset 0 6px 14px rgba(0,0,0,.65),inset 0 -2px 4px rgba(255,255,255,.04),0 10px 20px rgba(0,0,0,.5);
+  }
+  .joystick::before{ /* 行程环，提示能推多远 */
+    content:"";position:absolute;inset:14px;border-radius:50%;border:1px dashed rgba(255,255,255,.1);
+  }
+  .joystick .knob{
+    position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:linear-gradient(#3e3650,#211a2c);border:1px solid rgba(255,255,255,.22);
+    box-shadow:0 6px 14px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.15);
+    transition:transform .16s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .joystick.active .knob{
+    transition:none;background:linear-gradient(#4a3f60,#281f35);
+    box-shadow:0 6px 14px rgba(0,0,0,.55),0 0 0 5px rgba(255,46,106,.18);
+  }
   button{font:inherit;color:var(--ink);cursor:pointer;user-select:none}
   .key{border-radius:14px;border:1px solid rgba(255,255,255,.14);
     background:linear-gradient(#2a2533,#181420);box-shadow:0 3px 0 #0d0a12,0 8px 18px rgba(0,0,0,.5);
@@ -61,7 +80,8 @@
     font-size:11px;z-index:4;pointer-events:none}
   @media (max-width:430px){          /* 竖屏手机：收紧控制台，键盘提示无意义 */
     .panel{gap:8px;padding-left:8px;padding-right:8px}
-    .dpad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px)}
+    .joystick{width:88px;height:88px}
+    .joystick .knob{width:38px;height:38px}
     .big,.coin{width:78px;height:78px;font-size:13px}
     .hint{display:none}
   }
@@ -119,16 +139,10 @@
 
 <div class="panel">
   <button class="coin" id="btnCoin">投 币</button>
-  <div class="dpad">
-    <button class="key up" data-mv="f">▲</button>
-    <button class="key lf" data-mv="l">◀</button>
-    <div class="mid">移动</div>
-    <button class="key rt" data-mv="r">▶</button>
-    <button class="key dn" data-mv="b">▼</button>
-  </div>
+  <div class="joystick" id="joystick"><div class="knob" id="joyKnob"></div></div>
   <button class="big" id="btnDrop" disabled>下 爪</button>
 </div>
-<div class="hint">方向键 / WASD 移动 · 空格下爪 · C 投币</div>
+<div class="hint">摇杆 / 方向键 / WASD 移动 · 空格下爪 · C 投币</div>
 
 <div id="toast"><div class="card">
   <div class="em" id="t_em">🧸</div>
@@ -497,7 +511,15 @@ const G = {
   slipAt:0, slipPhase:'', grabTried:false, grip:1,
   timeLeft:0, lastBeep:0,
 };
-const input = {l:0,r:0,f:0,b:0};
+const keys = {l:0,r:0,f:0,b:0};   // 键盘：数字量 ±1
+const stick = {x:0,z:0};          // 摇杆：模拟量，推多远 x/z 就是多少（-1..1）
+// 两路输入合成一个模拟向量；键盘和摇杆同时用也不会互相打架，clamp 到 ±1 封顶
+function moveVec(){
+  return {
+    x: clamp(stick.x + (keys.r?1:0)-(keys.l?1:0), -1, 1),
+    z: clamp(stick.z + (keys.b?1:0)-(keys.f?1:0), -1, 1),
+  };
+}
 const rnd = (a,b)=>a+Math.random()*(b-a);
 const clamp = (v,a,b)=>v<a?a:v>b?b:v;
 
@@ -538,8 +560,8 @@ function insertCoin(){
 function dropClaw(){
   if(G.state!=='aim') return;
   uiDrop.disabled = true;
-  input.l=input.r=input.f=input.b=0;
-  for(const b of document.querySelectorAll('[data-mv]')) b.classList.remove('on');
+  keys.l=keys.r=keys.f=keys.b=0;
+  resetStick();
   SFX.winch(-1);
   setState('down');
 }
@@ -632,14 +654,14 @@ function step(dt){
     G.gvx = seek(CLAW_HOME.x-G.gx, G.gvx);
     G.gvz = seek(CLAW_HOME.z-G.gz, G.gvz);
   }else{
-    const ax = s==='aim' ? (input.r?1:0)-(input.l?1:0) : 0;
-    const az = s==='aim' ? (input.b?1:0)-(input.f?1:0) : 0;
+    // 摇杆是模拟量：推多远，巡航速度就按比例给多少，不是非零即满速
+    const mv = s==='aim' ? moveVec() : {x:0,z:0};
     const drive=(v,a)=>{
-      if(a) v += a*CFG.MOVE_A*dt;
-      else  v -= Math.sign(v)*Math.min(Math.abs(v), CFG.MOVE_A*1.7*dt);
-      return clamp(v, -CFG.MOVE_V, CFG.MOVE_V);
+      const target = clamp(a,-1,1) * CFG.MOVE_V;
+      const accel = Math.abs(target) > Math.abs(v) ? CFG.MOVE_A : CFG.MOVE_A*1.7;
+      return v + clamp(target-v, -accel*dt, accel*dt);
     };
-    G.gvx = drive(G.gvx, ax); G.gvz = drive(G.gvz, az);
+    G.gvx = drive(G.gvx, mv.x); G.gvz = drive(G.gvz, mv.z);
   }
   const nx = clamp(G.gx + G.gvx*dt, -CFG.LIMIT, CFG.LIMIT);
   const nz = clamp(G.gz + G.gvz*dt, -CFG.LIMIT, CFG.LIMIT);
@@ -838,22 +860,38 @@ const KEY = {ArrowLeft:'l',ArrowRight:'r',ArrowUp:'f',ArrowDown:'b',
 addEventListener('keydown', e=>{
   SFX.unlock();
   const k = KEY[e.key];
-  if(k){ input[k]=1; e.preventDefault(); return; }
+  if(k){ keys[k]=1; e.preventDefault(); return; }
   if(e.code==='Space'||e.key==='Enter'){ dropClaw(); e.preventDefault(); }
   if(e.key==='c'||e.key==='C') insertCoin();
 });
-addEventListener('keyup', e=>{ const k=KEY[e.key]; if(k) input[k]=0; });
+addEventListener('keyup', e=>{ const k=KEY[e.key]; if(k) keys[k]=0; });
 
-// 触摸/鼠标：按住持续移动
-for(const b of document.querySelectorAll('[data-mv]')){
-  const k = b.dataset.mv;
-  const on = e=>{ e.preventDefault(); SFX.unlock(); input[k]=1; b.classList.add('on'); };
-  const off= e=>{ e.preventDefault(); input[k]=0; b.classList.remove('on'); };
-  b.addEventListener('pointerdown',on);
-  b.addEventListener('pointerup',off);
-  b.addEventListener('pointercancel',off);
-  b.addEventListener('pointerleave',off);
+// 摇杆：拖多远推多远，松手弹回中心。用 pointer capture 保证手指划出底座范围也不丢
+const joyBase = el('joystick'), joyKnob = el('joyKnob');
+const JOY_R = 30; // 摇杆最大行程（px），要跟 CSS 里底座/旋钮的实际尺寸对得上
+let joyPid = null;
+function resetStick(){
+  stick.x = 0; stick.z = 0;
+  joyKnob.style.transform = 'translate(-50%,-50%)';
+  joyBase.classList.remove('active');
 }
+function updateStick(e){
+  const r = joyBase.getBoundingClientRect();
+  let dx = e.clientX - (r.left+r.width/2), dz = e.clientY - (r.top+r.height/2);
+  const d = Math.hypot(dx,dz);
+  if(d > JOY_R){ dx = dx/d*JOY_R; dz = dz/d*JOY_R; }
+  stick.x = dx/JOY_R; stick.z = dz/JOY_R;         // 屏幕右/下就是 x+/z+，跟按键方向天然一致
+  joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dz}px))`;
+}
+joyBase.addEventListener('pointerdown', e=>{
+  SFX.unlock(); joyPid = e.pointerId; joyBase.setPointerCapture(joyPid);
+  joyBase.classList.add('active'); updateStick(e); e.preventDefault();
+});
+joyBase.addEventListener('pointermove', e=>{ if(e.pointerId===joyPid){ updateStick(e); e.preventDefault(); } });
+const joyEnd = e=>{ if(e.pointerId===joyPid){ joyPid=null; resetStick(); } };
+joyBase.addEventListener('pointerup', joyEnd);
+joyBase.addEventListener('pointercancel', joyEnd);
+
 el('btnDrop').onclick = dropClaw;
 el('btnCoin').onclick = insertCoin;
 
@@ -908,7 +946,7 @@ renderer.setAnimationLoop(()=>{
 
 // 调试口：控制台里 __claw.G / __claw.dolls 可以直接看状态
 // step 也暴露出来，测试可以脱离 rAF 手动推进仿真（面板隐藏时 rAF 会被浏览器暂停）
-window.__claw = {CFG, G, dolls, world, insertCoin, dropClaw, step, input};
+window.__claw = {CFG, G, dolls, world, insertCoin, dropClaw, step, keys, stick};
 
 /* ── 自检：结果预定 + 保底一定会兑现 ───────────────────────── */
 (function selfCheck(){
@@ -930,12 +968,12 @@ window.__claw = {CFG, G, dolls, world, insertCoin, dropClaw, step, input};
     const stopD = CFG.MOVE_V*CFG.MOVE_V/(2*CFG.MOVE_A*1.7);   // 松手要留滑行量
     for(let i=0;i<2400;i++){
       const ex=tx-G.gx, ez=tz-G.gz;
-      input.r=ex>stopD?1:0; input.l=ex<-stopD?1:0;
-      input.b=ez>stopD?1:0; input.f=ez<-stopD?1:0;
+      keys.r=ex>stopD?1:0; keys.l=ex<-stopD?1:0;
+      keys.b=ez>stopD?1:0; keys.f=ez<-stopD?1:0;
       step(1/60);
-      if(!input.r&&!input.l&&!input.b&&!input.f && Math.hypot(G.gvx,G.gvz)<0.004) break;
+      if(!keys.r&&!keys.l&&!keys.b&&!keys.f && Math.hypot(G.gvx,G.gvz)<0.004) break;
     }
-    input.l=input.r=input.f=input.b=0;
+    keys.l=keys.r=keys.f=keys.b=0;
   };
   const round=(r)=>{
     CFG.winRate=r; CFG.pityAfter=999; CFG.aimTime=1e9; G.coins=99;
