@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>赛博老虎机</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+:root{
+  --ground:#0b0910;
+  --ink:#f5efe8; --dim:#9c8fa8; --dim-2:#6d6376;
+  --hot:#ff2e6a; --cyan:#3ee8ff; --gold:#ffcf4a; --violet:#8a63ff;
+  --frame:#c81249; --frame-dark:#6d0a29;
+  --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
+  /* 与大厅一致的液态玻璃质感令牌 */
+  --glass-bg: rgba(255,255,255,.08);
+  --glass-bg-strong: rgba(255,255,255,.13);
+  --glass-border: rgba(255,255,255,.18);
+  --glass-shadow: 0 1px 0 rgba(255,255,255,.14) inset, 0 14px 34px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
+  font:14px/1.4 var(--cjk),-apple-system,sans-serif;
+  overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+.disp{font-family:"Bungee",var(--cjk),sans-serif}
+.num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
+
+/* ---------- 环境光斑：呼应大厅液态玻璃背景 ---------- */
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;mix-blend-mode:soft-light;opacity:.6;
+  background:
+    radial-gradient(40vmax 40vmax at -8vmax -10vmax, var(--hot), transparent 60%),
+    radial-gradient(36vmax 36vmax at 108vw -8vmax, var(--cyan), transparent 60%),
+    radial-gradient(32vmax 32vmax at -6vmax 108vh, var(--gold), transparent 62%);
+  animation:ambientDrift 28s ease-in-out infinite;
+}
+@keyframes ambientDrift{0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(1.6vmax,-1.4vmax) scale(1.05)}}
+@media (prefers-reduced-motion:reduce){ .ambient{animation:none} }
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
+     align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
+.hud-left{display:flex;align-items:center;gap:9px}
+.backbtn{pointer-events:auto;width:28px;height:28px;border-radius:50%;flex:0 0 auto;
+  display:grid;place-items:center;text-decoration:none;color:var(--ink);font-size:14px;
+  background:var(--glass-bg);border:1px solid var(--glass-border);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+  box-shadow:var(--glass-shadow);transition:transform .15s,background .15s}
+.backbtn:active{transform:scale(.9);background:var(--glass-bg-strong)}
+.brand{font-weight:800;letter-spacing:.18em;font-size:13px;
+  background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
+.stats{display:flex;gap:10px}
+.chip{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums;
+  -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+  box-shadow:var(--glass-shadow);font-size:12px}
+.chip b{color:var(--gold);font-size:14px;display:inline-block}
+.bump{animation:bump .34s cubic-bezier(.3,1.4,.4,1)}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}}
+
+/* ---------- 舞台 / 机身 ---------- */
+.stage{position:fixed; inset:0; z-index:1; display:flex; align-items:center; justify-content:center;
+  padding:64px 34px 118px}
+.slotcab{position:relative; width:min(88vw,360px);
+  background:linear-gradient(180deg,var(--frame),var(--frame-dark));
+  border-radius:26px; padding:14px; box-shadow:0 40px 90px -34px rgba(0,0,0,.8);}
+.slotcab-inner{background:#120c1a; border-radius:16px; padding:16px; position:relative; overflow:hidden}
+.slotcab-inner::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:150px;
+  background:radial-gradient(60% 100% at 50% 0%,rgba(255,230,190,.10),transparent 70%);
+  pointer-events:none;
+}
+.marquee{position:relative; z-index:1; text-align:center; font-family:"Bungee",var(--cjk),sans-serif;
+  font-size:15px; letter-spacing:.1em; margin-bottom:12px;
+  background:linear-gradient(90deg,var(--gold),var(--hot));-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-shadow:0 0 18px rgba(255,207,74,.3)}
+
+.reels-wrap{position:relative; z-index:1}
+.reels{display:flex;gap:8px;justify-content:center;position:relative}
+.reel{width:84px;height:84px;overflow:hidden;border-radius:12px;position:relative;flex:0 0 auto;
+  background:linear-gradient(180deg,#1c1528,#120c1a 60%,#150f20);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:inset 0 12px 18px rgba(0,0,0,.55), inset 0 -12px 18px rgba(0,0,0,.55)}
+.reel::before,.reel::after{content:"";position:absolute;left:0;right:0;height:24px;z-index:2;pointer-events:none}
+.reel::before{top:0;background:linear-gradient(rgba(18,12,26,.95),transparent)}
+.reel::after{bottom:0;background:linear-gradient(transparent,rgba(18,12,26,.95))}
+.strip{display:flex;flex-direction:column;align-items:center}
+.strip .sym{height:84px;width:84px;display:flex;align-items:center;justify-content:center;
+  font-size:42px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+.payline{position:absolute;left:-4px;right:-4px;top:50%;height:2px;transform:translateY(-1px);
+  z-index:3;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,207,74,.85) 15%,rgba(255,207,74,.85) 85%,transparent);
+  box-shadow:0 0 10px 1px rgba(255,207,74,.6)}
+.reel.hit{box-shadow:inset 0 0 0 2px rgba(255,207,74,.85), 0 0 20px -2px rgba(255,207,74,.8)}
+
+.pay-row{display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-top:12px; position:relative; z-index:1}
+.pay{border-radius:8px; padding:6px 0; text-align:center; font-size:17px;
+  border:1px solid rgba(255,255,255,.1); background:linear-gradient(180deg,rgba(255,255,255,.04),transparent);
+  transition:box-shadow .2s,border-color .2s}
+.pay small{display:block; font-family:"Chakra Petch",sans-serif; font-size:8px; font-weight:700;
+  letter-spacing:.04em; color:var(--dim-2); margin-top:2px}
+.pay.hit{border-color:rgba(255,207,74,.6); box-shadow:0 0 16px -3px rgba(255,207,74,.85)}
+.pay.hit small{color:var(--gold)}
+
+.readout-strip{display:flex; justify-content:center; font-family:"Chakra Petch",sans-serif;
+  margin-top:12px; position:relative; z-index:1}
+.readout-strip b{display:block; font-size:15px; color:var(--ink)}
+.readout-strip small{font-size:8.5px; color:var(--dim); letter-spacing:.06em}
+
+/* ---------- 拉杆：机身右侧的老虎机手柄，拉到底才会开转 ---------- */
+.lever{position:absolute; right:-30px; top:16px; bottom:16px; width:36px; z-index:4;
+  display:flex; flex-direction:column; align-items:center; touch-action:none}
+.lever-rail{flex:1; width:10px; border-radius:6px; background:#1c1424;
+  border:1px solid rgba(255,255,255,.12); position:relative; box-shadow:inset 0 3px 8px rgba(0,0,0,.55)}
+.lever-rail::before{content:"";position:absolute; top:-20px; left:-13px; width:36px; height:22px;
+  border:2.5px solid rgba(255,255,255,.22); border-bottom:none; border-radius:18px 18px 0 0}
+.lever-fill{position:absolute; left:0; right:0; top:0; border-radius:6px 6px 0 0;
+  height:0%; background:linear-gradient(0deg,rgba(255,207,74,.08),rgba(255,207,74,.55));
+  transition:height .05s linear}
+.lever-ball{width:32px; height:32px; border-radius:50%; cursor:grab; margin-top:-2px; flex:0 0 auto;
+  background:radial-gradient(circle at 32% 28%,#ff9db3,var(--hot) 60%,#8f0031);
+  box-shadow:0 3px 8px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.15)}
+.lever.pulling .lever-ball{cursor:grabbing}
+.lever[disabled],.lever.off .lever-ball{filter:grayscale(.7) brightness(.6); cursor:default}
+
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
+  padding:16px max(14px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:center;gap:20px;
+  background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
+.coin{position:relative;overflow:hidden;width:88px;height:88px;border-radius:50%;
+  font-size:14px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
+  font-family:inherit;cursor:pointer;color:#3a2600;
+  background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+  box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4);
+  transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s}
+.coin::before{content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;
+  background:linear-gradient(160deg,rgba(255,255,255,.55),transparent 42%);
+  mix-blend-mode:overlay;opacity:.8}
+.coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
+.coin[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+.hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#4d4757;
+  font-size:11px;z-index:4;pointer-events:none}
+
+/* ---------- 结算 ---------- */
+#toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
+  background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
+#toast.show{display:grid;animation:fade .22s}
+@keyframes fade{from{opacity:0}}
+.card{position:relative;width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+  background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));border:1px solid var(--glass-border);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:var(--glass-shadow), 0 30px 70px -20px rgba(0,0,0,.65);
+  animation:cardIn .36s cubic-bezier(.2,.8,.2,1)}
+@keyframes cardIn{from{opacity:0;transform:scale(.9) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.card .em{font-size:52px;line-height:1;margin-bottom:10px}
+.card h2{margin:0 0 6px;font-size:21px}
+.card p{margin:0 0 20px;color:var(--dim);font-size:13px}
+.card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;font-family:inherit;
+  background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d;cursor:pointer}
+.card .x{position:absolute;top:14px;right:14px;width:26px;height:26px;padding:0;
+  border-radius:50%;font-size:12px;font-weight:400;line-height:1;
+  background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--dim);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  transition:transform .15s,background .15s,color .15s}
+.card .x:active{transform:scale(.88);background:var(--glass-bg-strong);color:var(--ink)}
+
+/* ---------- 五彩纸屑 ---------- */
+.confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
+  pointer-events:none;animation:confettiFall 1.15s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes confettiFall{
+  0%{transform:translate(0,0) rotate(0deg);opacity:1}
+  100%{transform:translate(calc(var(--dx,0) * 130px),68vh) rotate(720deg);opacity:0}
+}
+.punch{animation:punch .3s ease-out}
+@keyframes punch{30%{transform:scale(1.025)}}
+.jackpot-flash{position:fixed;inset:0;z-index:15;pointer-events:none;background:radial-gradient(circle,rgba(255,207,74,.35),transparent 70%);
+  animation:jflash .7s ease-out forwards}
+@keyframes jflash{from{opacity:1}to{opacity:0}}
+
+/* ---------- 调试 ---------- */
+#dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
+  background:var(--glass-bg-strong);border:1px solid var(--glass-border);border-radius:14px;
+  padding:10px 12px;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:var(--glass-shadow)}
+#dev.hid>*:not(.dh){display:none}
+.dh{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+  font-weight:700;color:var(--cyan);letter-spacing:.05em}
+#dev label{display:block;margin-top:9px;color:var(--dim)}
+#dev label span{color:var(--ink);float:right;font-variant-numeric:tabular-nums}
+#dev input[type=range]{width:100%;margin-top:3px;accent-color:var(--hot)}
+#dev .row{display:flex;gap:6px;margin-top:10px}
+#dev .row button{flex:1;padding:6px;border-radius:8px;font-size:11px;font-family:inherit;
+  border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:var(--ink);cursor:pointer}
+#log{margin-top:9px;color:#6f6880;font-size:11px;min-height:2.6em;font-variant-numeric:tabular-nums}
+
+@media (max-width:400px){
+  .stage{padding:56px 30px 108px}
+  .reel{width:70px;height:70px}
+  .strip .sym{height:70px;width:70px;font-size:36px}
+}
+@media (prefers-reduced-motion:reduce){
+  .punch,.confetti-bit,.jackpot-flash{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<div class="hud">
+  <div class="hud-left">
+    <a class="backbtn" href="index.html" title="返回大厅" aria-label="返回大厅">←</a>
+    <div class="brand">赛博老虎机</div>
+  </div>
+  <div class="stats">
+    <div class="chip">币 <b id="coins">10</b></div>
+    <div class="chip">获得 <b id="won">0</b></div>
+  </div>
+</div>
+
+<div id="dev" class="hid">
+  <div class="dh"><span>◈ 概率调试</span><span id="devt">+</span></div>
+  <label>高价符号加成 <span id="v_bias">0%</span><input id="s_bias" type="range" min="-80" max="300" value="0"></label>
+  <div class="row"><button id="b_free">+10 币</button><button id="b_jackpot">下一把 JACKPOT</button></div>
+  <div id="log">等待投币</div>
+</div>
+
+<div class="stage">
+  <div class="slotcab" id="slotcab">
+    <div class="slotcab-inner">
+      <div class="marquee">CYBER 777</div>
+
+      <div class="reels-wrap">
+        <div class="payline"></div>
+        <div class="reels">
+          <div class="reel" id="reel0"><div class="strip" id="strip0"></div></div>
+          <div class="reel" id="reel1"><div class="strip" id="strip1"></div></div>
+          <div class="reel" id="reel2"><div class="strip" id="strip2"></div></div>
+        </div>
+      </div>
+
+      <div class="pay-row" id="payRow">
+        <div class="pay" data-sym="🍋">🍋<small>2×</small></div>
+        <div class="pay" data-sym="🍇">🍇<small>3×</small></div>
+        <div class="pay" data-sym="🔔">🔔<small>5×</small></div>
+        <div class="pay" data-sym="💎">💎<small>8×</small></div>
+        <div class="pay" data-sym="⚡">⚡<small>15×</small></div>
+        <div class="pay" data-sym="7️⃣">7️⃣<small>50×</small></div>
+      </div>
+
+      <div class="readout-strip">
+        <div><b class="num" id="lastResult">--</b><small>本局结果</small></div>
+      </div>
+    </div>
+
+    <div class="lever off" id="lever">
+      <div class="lever-rail" id="leverRail"><div class="lever-fill" id="leverFill"></div></div>
+      <div class="lever-ball" id="leverBall"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <button class="coin" id="btnCoin">投 币</button>
+</div>
+<div class="hint">投币后拉动机身右侧的拉杆，拉到底松手才会开转</div>
+
+<div id="toast"><div class="card">
+  <button class="x" id="t_close" aria-label="关闭">✕</button>
+  <div class="em" id="t_em">🎰</div>
+  <h2 id="t_h">中了！</h2>
+  <p id="t_p"></p>
+  <button id="t_ok">再来一次</button>
+</div></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   0. 配置 + 状态
+   ══════════════════════════════════════════════════════════════ */
+const SYMBOLS = ['🍋','🍇','🔔','💎','⚡','7️⃣'];
+const BASE_WEIGHTS = {'🍋':30,'🍇':25,'🔔':20,'💎':15,'⚡':7,'7️⃣':3};
+const PAYOUT       = {'🍋':2, '🍇':3, '🔔':5, '💎':8, '⚡':15,'7️⃣':50};
+const HIGH_TIER = new Set(['💎','⚡','7️⃣']);   // 调试加成只放大这几个的权重，方便验证大奖演出
+const CFG = { BET: 1, winBias: 0 };
+const G = {
+  coins: 10, won: 0,
+  state: 'idle',        // idle | ready | spinning | settle
+  forceJackpot: false,
+};
+const el = id=>document.getElementById(id);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+
+const uiCoins=el('coins'), uiWon=el('won'), uiResult=el('lastResult');
+
+function setNum(elm, val){
+  elm.textContent = val;
+  elm.classList.remove('bump'); void elm.offsetWidth; elm.classList.add('bump');
+}
+function log(s){ const l=el('log'); if(l) l.textContent = s; }
+function confetti(n=20){
+  const colors=['var(--hot)','var(--gold)','var(--cyan)','var(--violet)','#fff'];
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');
+    s.className='confetti-bit';
+    s.style.left=(42+Math.random()*16)+'%';
+    s.style.setProperty('--dx',(Math.random()*2-1).toFixed(2));
+    s.style.background=colors[i%colors.length];
+    s.style.animationDelay=(Math.random()*.18)+'s';
+    document.body.appendChild(s);
+    s.addEventListener('animationend',()=>s.remove());
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   1. 音效 —— 跟其它两台机器同一套程序化合成
+   ══════════════════════════════════════════════════════════════ */
+const SFX = (()=>{
+  let ac=null, master=null;
+  const on = ()=>{ if(ac) return ac;
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value=.5; master.connect(ac.destination);
+    return ac; };
+  const tone=(f,d,type='square',g=.10,f2=null,delay=0)=>{ if(!ac) return;
+    const t=ac.currentTime+delay, o=ac.createOscillator(); o.type=type;
+    o.frequency.setValueAtTime(f,t);
+    if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(0,t);
+    gn.gain.linearRampToValueAtTime(g,t+.008);
+    gn.gain.exponentialRampToValueAtTime(1e-4,t+d);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t+d+.02); };
+  const noise=(d,g,lp,delay=0)=>{ if(!ac) return;
+    const n=Math.floor(ac.sampleRate*d), buf=ac.createBuffer(1,n,ac.sampleRate), ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=ac.createBufferSource(); s.buffer=buf;
+    const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp;
+    const gn=ac.createGain(); gn.gain.value=g;
+    s.connect(f); f.connect(gn); gn.connect(master);
+    s.start(ac.currentTime+delay); };
+  return {
+    unlock(){ on(); if(ac.state==='suspended') ac.resume(); },
+    coin(){ tone(760,.06,'square',.10); tone(1180,.10,'square',.09,null,.06); noise(.05,.05,3000,.0); },
+    lever(){ tone(180,.12,'sawtooth',.09,420); },
+    reelTick(){ tone(rnd(700,900),.02,'square',.05); },
+    reelStop(){ noise(.08,.14,1800); tone(160,.08,'square',.08,110); },
+    win(mult){ const n=Math.min(6,2+Math.round(mult/6));
+      [523,659,784,1046,1318,1568].slice(0,n).forEach((f,i)=>tone(f,.16,'square',.10,null,i*.075));
+      noise(.5,.05,5200,.1); if(navigator.vibrate)navigator.vibrate([40,60,120]); },
+    jackpot(){ [523,659,784,988,1175,1568,1975].forEach((f,i)=>tone(f,.22,'square',.12,null,i*.09));
+      noise(.7,.08,6000,.15); if(navigator.vibrate)navigator.vibrate([50,80,50,80,150]); },
+    fail(){ tone(340,.16,'sawtooth',.07,150); tone(230,.22,'sawtooth',.06,90,.13); },
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   2. 结果判定 —— 纯函数，跟动画完全分开，方便自检
+   ══════════════════════════════════════════════════════════════ */
+function currentWeights(){
+  // winBias 只在调试面板出现：正值把高价符号权重按比例放大，默认 0 完全等于 BASE_WEIGHTS
+  const w = {};
+  for(const s of SYMBOLS) w[s] = BASE_WEIGHTS[s] * (HIGH_TIER.has(s) ? Math.max(0,1+CFG.winBias) : 1);
+  return w;
+}
+function pickSymbol(){
+  const w = currentWeights();
+  const total = SYMBOLS.reduce((s,k)=>s+w[k],0);
+  let r = Math.random()*total;
+  for(const s of SYMBOLS){ r-=w[s]; if(r<0) return s; }
+  return SYMBOLS[SYMBOLS.length-1];
+}
+function spinOutcome(){
+  if(G.forceJackpot){ G.forceJackpot=false; return payoutFor(['7️⃣','7️⃣','7️⃣']); }
+  return payoutFor([pickSymbol(), pickSymbol(), pickSymbol()]);
+}
+function payoutFor(symbols){
+  const [a,b,c] = symbols;
+  if(a===b && b===c) return {symbols, mult:PAYOUT[a], kind:'triple', symbol:a};
+  if(a===b || b===c || a===c){
+    const symbol = a===b ? a : (b===c ? b : a);
+    return {symbols, mult:Math.max(1, Math.round(PAYOUT[symbol]/4)), kind:'pair', symbol};
+  }
+  return {symbols, mult:0, kind:'none', symbol:null};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3. 投币 / 拉杆
+   ══════════════════════════════════════════════════════════════ */
+const btnCoin = el('btnCoin');
+const lever = el('lever'), leverBall = el('leverBall'), leverFill = el('leverFill');
+const LEVER_MAX = 118;
+let leverPid=null, leverStartY=0, leverPull=0;
+
+function setLever(p){
+  leverPull = clamp(p,0,1);
+  leverBall.style.transform = `translateY(${leverPull*LEVER_MAX}px)`;
+  leverFill.style.height = (leverPull*100).toFixed(0)+'%';
+}
+function resetLever(){ setLever(0); lever.classList.remove('pulling'); }
+function armLever(on){ lever.classList.toggle('off', !on); }
+
+function insertCoin(){
+  SFX.unlock();
+  if(G.state!=='idle' || G.coins<CFG.BET) return;
+  G.coins -= CFG.BET; setNum(uiCoins, G.coins);
+  SFX.coin();
+  G.state = 'ready';
+  btnCoin.disabled = true;
+  armLever(true);
+  log('已投币，拉动右侧拉杆开转');
+}
+btnCoin.onclick = insertCoin;
+
+leverBall.addEventListener('pointerdown', e=>{
+  if(G.state!=='ready') return;
+  SFX.unlock();
+  leverPid = e.pointerId;
+  try{ leverBall.setPointerCapture(leverPid); }catch{}
+  leverStartY = e.clientY; lever.classList.add('pulling');
+  e.preventDefault();
+});
+leverBall.addEventListener('pointermove', e=>{
+  if(e.pointerId!==leverPid || G.state!=='ready') return;
+  setLever((e.clientY-leverStartY)/LEVER_MAX);
+  e.preventDefault();
+});
+function leverEnd(e){
+  if(e.pointerId!==leverPid) return;
+  leverPid = null;
+  if(G.state!=='ready'){ resetLever(); return; }
+  const pulled = leverPull >= 0.82;
+  resetLever();
+  if(pulled){ SFX.lever(); doSpin(); }
+}
+leverBall.addEventListener('pointerup', leverEnd);
+leverBall.addEventListener('pointercancel', leverEnd);
+
+/* ══════════════════════════════════════════════════════════════
+   4. 转轮动画：结果先摇定，动画只负责把它「演」出来
+   ══════════════════════════════════════════════════════════════ */
+const strips = [el('strip0'), el('strip1'), el('strip2')];
+const reels = [el('reel0'), el('reel1'), el('reel2')];
+const SYM_H = 84;
+const FILLER = 22;   // 停下前滚过多少格，制造转动感
+
+function buildStrip(stripEl, finalSymbol){
+  stripEl.style.transition = 'none';
+  stripEl.style.transform = 'translateY(0)';
+  stripEl.innerHTML = '';
+  for(let i=0;i<FILLER;i++){
+    const d = document.createElement('div'); d.className='sym';
+    d.textContent = SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];
+    stripEl.appendChild(d);
+  }
+  const last = document.createElement('div'); last.className='sym'; last.textContent = finalSymbol;
+  stripEl.appendChild(last);
+  stripEl.getBoundingClientRect();          // 强制回流，确保下一帧的 transition 生效
+}
+function spinStrip(stripEl, delay, duration){
+  return new Promise(resolve=>{
+    setTimeout(()=>{
+      const tickEvery = Math.max(40, duration/FILLER);
+      let ticks = 0;
+      const tickTimer = setInterval(()=>{ SFX.reelTick(); if(++ticks>=FILLER) clearInterval(tickTimer); }, tickEvery);
+      stripEl.style.transition = `transform ${duration}ms cubic-bezier(.13,.85,.22,1)`;
+      stripEl.style.transform = `translateY(-${FILLER*SYM_H}px)`;
+      setTimeout(()=>{ clearInterval(tickTimer); SFX.reelStop(); resolve(); }, duration);
+    }, delay);
+  });
+}
+function highlightPay(symbol, on){
+  document.querySelectorAll('.pay').forEach(p=> p.classList.toggle('hit', on && p.dataset.sym===symbol));
+}
+
+async function doSpin(){
+  G.state = 'spinning';
+  armLever(false);
+  highlightPay(null,false);
+  reels.forEach(r=>r.classList.remove('hit'));
+  const outcome = spinOutcome();
+  outcome.symbols.forEach((s,i)=> buildStrip(strips[i], s));
+
+  await Promise.all([
+    spinStrip(strips[0], 0,   820),
+    spinStrip(strips[1], 180, 980),
+    spinStrip(strips[2], 360, 1140),
+  ]);
+
+  finish(outcome);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   5. 结算
+   ══════════════════════════════════════════════════════════════ */
+function finish(outcome){
+  G.state = 'settle';
+  const { mult, kind, symbol, symbols } = outcome;
+  uiResult.textContent = symbols.join('');
+  if(mult>0){
+    const payout = mult*CFG.BET;
+    G.coins += payout; G.won += payout;
+    setNum(uiCoins, G.coins); setNum(uiWon, G.won);
+    reels.forEach(r=>r.classList.add('hit'));
+    highlightPay(symbol, true);
+    document.querySelector('.slotcab').classList.add('punch');
+    setTimeout(()=>document.querySelector('.slotcab').classList.remove('punch'), 320);
+    confetti(kind==='triple' && symbol==='7️⃣' ? 40 : 20);
+    if(symbol==='7️⃣' && kind==='triple'){
+      SFX.jackpot();
+      const flash = document.createElement('div'); flash.className='jackpot-flash';
+      document.body.appendChild(flash); flash.addEventListener('animationend',()=>flash.remove());
+      toast('🎉', 'JACKPOT！', `${symbols.join(' ')} —— 赢回 ${payout} 币`);
+    }else{
+      SFX.win(mult);
+      toast('🎰', `中了 ${mult}×！`, `${symbols.join(' ')}（${kind==='triple'?'三连':'两连'}）赢回 ${payout} 币`);
+    }
+    log(`${symbols.join('')}｜${kind==='triple'?'三连':'两连'} ${mult}×，赢回 ${payout} 币`);
+  }else{
+    SFX.fail();
+    toast('💢', '差一点…', `${symbols.join(' ')} 没有连线`);
+    log(`${symbols.join('')}｜未中`);
+  }
+}
+function toast(em,h,p){
+  el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
+  el('toast').classList.add('show');
+}
+function closeToast(){
+  el('toast').classList.remove('show');
+  G.state = 'idle';
+  btnCoin.disabled = G.coins < CFG.BET;
+  armLever(false);
+}
+el('t_ok').onclick = closeToast;
+el('t_close').onclick = closeToast;
+el('toast').addEventListener('click', e=>{ if(e.target.id==='toast') closeToast(); });
+
+/* ══════════════════════════════════════════════════════════════
+   6. 调试面板
+   ══════════════════════════════════════════════════════════════ */
+const dev = el('dev');
+dev.querySelector('.dh').onclick = ()=>{
+  dev.classList.toggle('hid');
+  el('devt').textContent = dev.classList.contains('hid') ? '+' : '−';
+};
+el('s_bias').oninput = e=>{
+  CFG.winBias = (+e.target.value)/100;
+  el('v_bias').textContent = e.target.value+'%';
+};
+el('b_free').onclick = ()=>{ G.coins += 10; setNum(uiCoins, G.coins); btnCoin.disabled = G.state!=='idle'; SFX.coin(); };
+el('b_jackpot').onclick = ()=>{ G.forceJackpot = true; log('下一把已强制 JACKPOT'); };
+
+/* ══════════════════════════════════════════════════════════════
+   7. 自检：权重求和、赔率结构、蒙特卡洛 RTP 粗测
+   ══════════════════════════════════════════════════════════════ */
+window.__slot = {CFG, G, SYMBOLS, PAYOUT, spinOutcome, payoutFor, pickSymbol};
+(function selfCheck(){
+  console.assert(SYMBOLS.every(s=>BASE_WEIGHTS[s]>0 && PAYOUT[s]>0), '权重/赔率表缺项');
+  console.assert(Math.abs(SYMBOLS.reduce((s,k)=>s+BASE_WEIGHTS[k],0)-100)<1e-6, '权重总和应为 100');
+  // 赔率必须随档位递增：符号越稀有，三连赔率必须越高，配错了这条断言会炸
+  const ranked = [...SYMBOLS].sort((a,b)=>BASE_WEIGHTS[b]-BASE_WEIGHTS[a]);
+  for(let i=1;i<ranked.length;i++){
+    console.assert(PAYOUT[ranked[i]] >= PAYOUT[ranked[i-1]],
+      `PAYOUT 没有随稀有度递增：${ranked[i-1]}=${PAYOUT[ranked[i-1]]} > ${ranked[i]}=${PAYOUT[ranked[i-1]]}`);
+  }
+  const N = 300000;
+  let totalBet=0, totalPay=0, jackpots=0, wins=0;
+  for(let i=0;i<N;i++){
+    const o = payoutFor([pickSymbol(), pickSymbol(), pickSymbol()]);
+    totalBet += CFG.BET;
+    if(o.mult>0){ wins++; totalPay += o.mult*CFG.BET; }
+    if(o.kind==='triple' && o.symbol==='7️⃣') jackpots++;
+  }
+  const rtp = totalPay/totalBet;
+  console.assert(rtp>0.3 && rtp<1.3, `RTP ${(rtp*100).toFixed(1)}% 明显不合理，检查权重/赔率表`);
+  console.log(`[selfcheck] 老虎机 命中率 ${(wins/N*100).toFixed(1)}%｜RTP ${(rtp*100).toFixed(1)}%｜JACKPOT 概率 ${(jackpots/N*100).toFixed(3)}%（默认权重，未加成）`);
+})();
+</script>
+</body>
+</html>

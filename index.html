@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="description" content="赛博游戏厅 —— 街机小游戏合集，赛博抓娃娃 · 赛博弹弹珠">
+<meta name="description" content="赛博游戏厅 —— 街机小游戏合集，赛博抓娃娃 · 赛博弹弹珠 · 赛博老虎机 · 赛博推币机">
 <title>赛博游戏厅 · Cyber Arcade</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕹️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -145,6 +145,8 @@ body{
 .grid .card:nth-child(1){animation-delay:.05s}
 .grid .card:nth-child(2){animation-delay:.14s}
 .grid .card:nth-child(3){animation-delay:.23s}
+.grid .card:nth-child(4){animation-delay:.32s}
+.grid .card:nth-child(5){animation-delay:.41s}
 @keyframes rise{to{opacity:1; transform:translateY(0)}}
 .card:hover{transform:translateY(-6px)}
 .card:active{transform:translateY(-2px) scale(.995)}
@@ -175,6 +177,12 @@ body{
 .art-plinko{background:
   radial-gradient(120% 140% at 80% -10%, rgba(255,255,255,.5), transparent 55%),
   linear-gradient(135deg,#3ee8ff,#3355d8 55%,#160c3d)}
+.art-slot{background:
+  radial-gradient(120% 140% at 20% -10%, rgba(255,255,255,.5), transparent 55%),
+  linear-gradient(135deg,#ffd873,#c9003f 55%,#3a0a1f)}
+.art-pusher{background:
+  radial-gradient(120% 140% at 80% -10%, rgba(255,255,255,.5), transparent 55%),
+  linear-gradient(135deg,#8a63ff,#3ee8ff 65%,#0f1c3d)}
 .art-soon{background:
   repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 10px, transparent 10px 20px),
   linear-gradient(135deg,#b6a4ff,#6a4fd8 60%,#241a4d)}
@@ -240,9 +248,9 @@ footer a:hover{color:var(--accent)}
 
 <section class="hero">
   <h1><span>CYBER ARCADE</span>液态玻璃 · 游戏大厅</h1>
-  <p>两台街机，同一枚代币。选一台机器，投币开始。</p>
+  <p>四台街机，各玩各的规矩。选一台机器，投币（或投珠）开始。</p>
   <div class="pillrow">
-    <span class="pill">🎮 2 款游戏</span>
+    <span class="pill">🎮 4 款游戏</span>
     <span class="pill">📱 触屏 / 键鼠皆宜</span>
     <span class="pill">⚡ 纯前端 · 免安装</span>
   </div>
@@ -281,6 +289,36 @@ footer a:hover{color:var(--accent)}
       </div>
     </a>
 
+    <a class="card" href="slot.html">
+      <div class="card-art art-slot"><span class="emoji">🎰</span></div>
+      <div class="card-body">
+        <h3>赛博老虎机</h3>
+        <p>拉下机身侧边的拉杆，三个转轮各自摇定结果——连线不分家，赔率表直接印在机身上。</p>
+        <div class="tags"><span class="tag">老虎机</span><span class="tag">概率玩法</span><span class="tag">2D</span></div>
+        <div class="play-row">
+          <span class="play-btn">开始游戏
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="meta-num">NO. 03</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="card" href="pusher.html">
+      <div class="card-art art-pusher"><span class="emoji">🪙</span></div>
+      <div class="card-body">
+        <h3>赛博推币机</h3>
+        <p>瞄准位置投币，推板不停把币堆推向台边——物理真实演算，掉多少全看那一下的运气。</p>
+        <div class="tags"><span class="tag">Three.js</span><span class="tag">物理引擎</span><span class="tag">3D</span></div>
+        <div class="play-row">
+          <span class="play-btn">开始游戏
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="meta-num">NO. 04</span>
+        </div>
+      </div>
+    </a>
+
     <div class="card soon" aria-disabled="true">
       <div class="card-art art-soon"><span class="emoji">🛠️</span></div>
       <div class="card-body">
@@ -289,7 +327,7 @@ footer a:hover{color:var(--accent)}
         <div class="tags"><span class="tag">Coming soon</span></div>
         <div class="play-row">
           <span class="play-btn">开发中</span>
-          <span class="meta-num">NO. 03</span>
+          <span class="meta-num">NO. 05</span>
         </div>
       </div>
     </div>

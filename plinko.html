@@ -161,26 +161,62 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 .plunger.charging .knob{cursor:grabbing}
 
 .panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
-  padding:16px max(14px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-bottom));
-  display:flex;align-items:center;justify-content:center;gap:20px;
+  padding:14px max(14px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;
   background:linear-gradient(transparent,rgba(6,4,10,.55) 38%,rgba(6,4,10,.92))}
-.coin,.big{position:relative;overflow:hidden;width:88px;height:88px;border-radius:50%;
-  font-size:14px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
-  font-family:inherit;cursor:pointer;transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s}
-.coin::before,.big::before{ /* 玻璃高光弧，跟大厅/抓娃娃统一的按钮语言 */
+.big{position:relative;overflow:hidden;width:82px;height:82px;border-radius:50%;
+  font-size:13px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
+  font-family:inherit;cursor:pointer;transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s;
+  flex:0 0 auto;color:#fff;background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
+  box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45)}
+.big::before{ /* 玻璃高光弧，跟大厅/抓娃娃统一的按钮语言 */
   content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;
   background:linear-gradient(160deg,rgba(255,255,255,.55),transparent 42%);
   mix-blend-mode:overlay;opacity:.8}
-.coin{color:#3a2600;background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
-  box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4)}
-.coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
-.coin[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
-.big{color:#fff;background:radial-gradient(circle at 35% 30%,#ff5c86,#c9003f 70%);
-  box-shadow:0 5px 0 #6b0022,0 12px 30px rgba(201,0,63,.45)}
 .big:active{transform:translateY(5px);box-shadow:0 0 0 #6b0022}
 .big[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+
+/* ---------- 投珠控制：数量选择 + 自定义输入，随时可加注 ---------- */
+.betpad{display:flex;flex-direction:column;gap:8px;align-items:center}
+.betrow{display:flex;gap:7px}
+.betchip{padding:9px 13px;border-radius:999px;font-weight:800;font-size:12.5px;letter-spacing:.01em;
+  font-family:inherit;color:#3a2600;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+  border:1px solid rgba(255,255,255,.2);box-shadow:0 4px 0 #7a5600,0 8px 16px rgba(217,154,0,.35);
+  transition:transform .12s,box-shadow .12s}
+.betchip:active{transform:translateY(3px);box-shadow:0 1px 0 #7a5600}
+.betchip[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 4px 0 #222;cursor:default}
+.betcustom{display:flex;gap:6px}
+.betcustom input{width:60px;text-align:center;border-radius:10px;border:1px solid var(--glass-border);
+  background:var(--glass-bg);color:var(--ink);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;
+  padding:8px 4px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.betcustom input::-webkit-outer-spin-button,.betcustom input::-webkit-inner-spin-button{margin:0}
+.betcustom button{padding:8px 14px;border-radius:10px;border:1px solid var(--glass-border);font-weight:700;
+  font-family:inherit;font-size:12.5px;background:var(--glass-bg-strong);color:var(--ink);cursor:pointer}
+.betcustom button[disabled]{opacity:.4;cursor:default}
 .hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#4d4757;
-  font-size:11px;z-index:4;pointer-events:none}
+  font-size:10.5px;z-index:4;pointer-events:none}
+@media (max-width:400px){
+  .betchip{padding:8px 10px;font-size:11.5px}
+  .betcustom input{width:50px}
+  .big{width:72px;height:72px;font-size:12px}
+}
+
+/* ---------- 调试 ---------- */
+#dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
+  background:var(--glass-bg-strong);border:1px solid var(--glass-border);border-radius:14px;
+  padding:10px 12px;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:var(--glass-shadow)}
+#dev.hid>*:not(.dh){display:none}
+.dh{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+  font-weight:700;color:var(--cyan);letter-spacing:.05em}
+#dev label{display:block;margin-top:9px;color:var(--dim)}
+#dev label span{color:var(--ink);float:right;font-variant-numeric:tabular-nums}
+#dev input[type=range]{width:100%;margin-top:3px;accent-color:var(--hot)}
+#dev .row{display:flex;gap:6px;margin-top:10px}
+#dev .row button{flex:1;padding:6px;border-radius:8px;font-size:11px;font-family:inherit;
+  border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:var(--ink);cursor:pointer}
+#log{margin-top:9px;color:#6f6880;font-size:11px;min-height:2.6em;font-variant-numeric:tabular-nums}
 
 /* ---------- 结算 ---------- */
 #toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
@@ -241,9 +277,16 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
     <div class="brand">赛博弹弹珠</div>
   </div>
   <div class="stats">
-    <div class="chip">币 <b id="coins">10</b></div>
-    <div class="chip">积分 <b id="score">0</b></div>
+    <div class="chip">弹珠 <b id="marbles">30</b></div>
+    <div class="chip">本局 <b id="betDisplay">0</b></div>
   </div>
+</div>
+
+<div id="dev" class="hid">
+  <div class="dh"><span>◈ 概率调试</span><span id="devt">+</span></div>
+  <label>命中率加成 <span id="v_bias">0%</span><input id="s_bias" type="range" min="-50" max="100" value="0"></label>
+  <div class="row"><button id="b_free">+50 弹珠</button><button id="b_reset">重置</button></div>
+  <div id="log">等待投珠</div>
 </div>
 
 <div class="stage">
@@ -295,9 +338,20 @@ html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);
 </div>
 
 <div class="panel">
-  <button class="coin" id="btnMain">投 币</button>
+  <div class="betpad">
+    <div class="betrow">
+      <button class="betchip" data-n="1">投1</button>
+      <button class="betchip" data-n="5">投5</button>
+      <button class="betchip" data-n="10">投10</button>
+    </div>
+    <div class="betcustom">
+      <input type="number" id="betQty" min="1" step="1" value="3" inputmode="numeric">
+      <button id="btnBetCustom">投入</button>
+    </div>
+  </div>
+  <button class="big" id="btnStop" disabled>停 止</button>
 </div>
-<div class="hint">投币后按钮变成「停止」，按下锁定倍率和出口，再拖右下角拉杆蓄力发射</div>
+<div class="hint">投珠即开始变灯，随时可加注；按停止锁定倍率和出口，直到结算前都能继续投珠</div>
 
 <div id="toast"><div class="card">
   <button class="x" id="t_close" aria-label="关闭">✕</button>
@@ -316,10 +370,12 @@ const CFG = {
   MULTS: [2,4,6,8,10],
   LIT_COUNT: {2:6, 4:4, 6:2, 8:1, 10:1},        // 倍率越高，留给玩家的出口越少
   MULT_WEIGHTS: {2:40, 4:25, 6:17, 8:10, 10:8}, // 倍率越低，这一局摇到它的概率越大
-  BET: 1,
+  START_MARBLES: 30,
+  winBias: 0,          // 调试用命中率加成（-0.5~1），0 = 不加成，只影响 rollLanding
 };
 const G = {
-  coins: 10, score: 0,
+  marbles: CFG.START_MARBLES,
+  bet: 0,              // 本局已投入的弹珠数，从「停止」到结算前都能继续累加
   state: 'idle',      // idle | chasing | locked | charging | falling | settle
   lit: new Set(), mult: null,
 };
@@ -328,13 +384,14 @@ const clamp = (v,a,b)=>v<a?a:v>b?b:v;
 const rnd = (a,b)=>a+Math.random()*(b-a);
 const wait = ms=>new Promise(r=>setTimeout(r,ms));
 
-const uiCoins=el('coins'), uiScore=el('score'), uiRoundMult=el('roundMult'), uiPower=el('powerReadout');
+const uiMarbles=el('marbles'), uiBet=el('betDisplay'), uiRoundMult=el('roundMult'), uiPower=el('powerReadout');
 
 /* ---- 数字变化时的跳动反馈 ---- */
 function setNum(elm, val){
   elm.textContent = val;
   elm.classList.remove('bump'); void elm.offsetWidth; elm.classList.add('bump');
 }
+function log(s){ const l=el('log'); if(l) l.textContent = s; }
 /* ---- 五彩纸屑：中奖那一下的视觉爆点，跟抓娃娃机共用同一套样式 ---- */
 function confetti(n=20){
   const colors=['var(--hot)','var(--gold)','var(--cyan)','var(--violet)','#fff'];
@@ -433,16 +490,28 @@ function pickMult(){
   for(const m of CFG.MULTS){ r -= CFG.MULT_WEIGHTS[m]; if(r<0) return m; }
   return CFG.MULTS[CFG.MULTS.length-1];   // 浮点误差兜底
 }
+// 从 [0,max) 里不重复地抽 n 个下标：局部 Fisher-Yates，固定跑 max 步就结束。
+// 不能用"随机数不重复就一直抽"的写法——如果 Math.random 被外部改写成常量
+// （调试脚本、某些浏览器扩展都干过这事），那种写法会死循环卡死整个页面。
+function pickDistinct(n, max){
+  const arr = Array.from({length:max}, (_,i)=>i);
+  for(let i=max-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr.slice(0,n);
+}
 function pickRound(){
   const mult = pickMult();
   const need = CFG.LIT_COUNT[mult];
-  const lit = new Set();
-  while(lit.size < need) lit.add(Math.floor(Math.random()*CFG.N_EXIT));
+  const lit = new Set(pickDistinct(need, CFG.N_EXIT));
   return {mult, lit};
 }
 function rollLanding(lit){
-  // 命中率就是「亮灯出口数 / 15」——不是另外定的赔率表，跟灯位数量天然绑死
-  const win = Math.random() < (lit.size / CFG.N_EXIT);
+  // 命中率就是「亮灯出口数 / 15」——不是另外定的赔率表，跟灯位数量天然绑死；
+  // winBias 只是调试面板用来临时加成/削弱命中率，默认 0 时跟原公式完全一致
+  const chance = clamp((lit.size / CFG.N_EXIT) * (1+CFG.winBias), 0, 1);
+  const win = Math.random() < chance;
   const pool = [];
   for(let i=0;i<CFG.N_EXIT;i++) if(lit.has(i)===win) pool.push(i);
   const col = pool[Math.floor(Math.random()*pool.length)];
@@ -461,9 +530,8 @@ function chaseTick(){
   multTiles.forEach(t=>t.classList.remove('chase'));
   multTiles[Math.floor(Math.random()*multTiles.length)].classList.add('chase');
   exits.forEach(e=>e.classList.remove('chase'));
-  const n = 2+Math.floor(Math.random()*2), idx=new Set();
-  while(idx.size<n) idx.add(Math.floor(Math.random()*CFG.N_EXIT));
-  idx.forEach(i=>exits[i].classList.add('chase'));
+  const n = 2+Math.floor(Math.random()*2);
+  pickDistinct(n, CFG.N_EXIT).forEach(i=>exits[i].classList.add('chase'));
   SFX.tick();
 }
 function startChase(){
@@ -485,34 +553,48 @@ function stopChaseAndLock(){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   5. 投币 / 停止（同一个按钮） / 拉杆蓄力 / 发射 / 掉落动画
+   5. 投珠（随时可加注）/ 停止 / 拉杆蓄力 / 发射 / 掉落动画
    ══════════════════════════════════════════════════════════════ */
-const btnMain = el('btnMain');
-function setBtn(label, enabled, kind){   // kind: 'coin'(金色) | 'stop'(红色)
-  btnMain.textContent = label;
-  btnMain.disabled = !enabled;
-  btnMain.classList.toggle('coin', kind==='coin');
-  btnMain.classList.toggle('big', kind==='stop');
+const btnStop = el('btnStop');
+const betChips = [...document.querySelectorAll('.betchip')];
+const betQtyInput = el('betQty'), btnBetCustom = el('btnBetCustom');
+
+// 能投珠的状态：从投第一颗（idle）到球落地结算前（falling）都算数，
+// 对应需求「停下直到结算都可以投注」——停止只锁多倍率/出口，不锁投注。
+const BETTABLE = ['idle','chasing','locked','charging','falling'];
+function refreshBetButtons(){
+  betChips.forEach(b=>{ b.disabled = G.marbles < +b.dataset.n; });
+  btnBetCustom.disabled = G.marbles < 1;
 }
-function insertCoin(){
+function addMarbles(qty){
+  qty = Math.floor(qty);
+  if(!(qty>=1) || !BETTABLE.includes(G.state) || G.marbles<qty) return;
   SFX.unlock();
-  if(G.state!=='idle' || G.coins<CFG.BET) return;
-  G.coins -= CFG.BET; setNum(uiCoins, G.coins);
+  const startingRound = G.state==='idle';
+  G.marbles -= qty; G.bet += qty;
+  setNum(uiMarbles, G.marbles); setNum(uiBet, G.bet);
   SFX.coin();
-  G.state = 'chasing';
-  setBtn('停 止', true, 'stop');
-  startChase();
+  refreshBetButtons();
+  if(startingRound){
+    G.state = 'chasing';
+    btnStop.disabled = false;
+    startChase();
+    log(`本局开始，已投 ${G.bet} 颗`);
+  }else{
+    log(`追加投注，共投 ${G.bet} 颗`);
+  }
 }
+betChips.forEach(b=> b.onclick = ()=> addMarbles(+b.dataset.n));
+btnBetCustom.onclick = ()=> addMarbles(+betQtyInput.value || 1);
+
 function pressStop(){
   if(G.state!=='chasing') return;
   stopChaseAndLock();
   G.state = 'locked';
-  setBtn('停 止', false, 'stop');
+  btnStop.disabled = true;
+  log(`锁定 ${G.mult}×，已投 ${G.bet} 颗，停止前后都能继续加注`);
 }
-btnMain.onclick = ()=>{
-  if(G.state==='idle') insertCoin();
-  else if(G.state==='chasing') pressStop();
-};
+btnStop.onclick = pressStop;
 
 /* ---- 球的坐标系统：只有一个球元素，全程相对 .pinball-inner 用 px 定位 ----
    钉板收了 6°/rotateX 的 3D 倾斜，但 getBoundingClientRect 拿到的是变换后的
@@ -658,17 +740,22 @@ async function doLaunch(p){
 
 function finish(win, mult, col){
   G.state = 'settle';
+  const bet = G.bet; G.bet = 0; setNum(uiBet, 0);
   if(win){
-    G.score += mult; setNum(uiScore, G.score);
+    const payout = bet*mult;
+    G.marbles += payout; setNum(uiMarbles, G.marbles);
     SFX.win(mult);
     document.querySelector('.pinball').classList.add('punch');
     setTimeout(()=>document.querySelector('.pinball').classList.remove('punch'), 320);
     confetti();
-    toast('🎯', `中了 ${mult}×！`, `从第 ${col+1} 号口出局，落在亮灯出口上`);
+    toast('🎯', `中了 ${mult}×！`, `投入 ${bet} 颗，从第 ${col+1} 号口出局，赢回 ${payout} 颗`);
+    log(`中 ${mult}×｜投入 ${bet} 颗，赢回 ${payout} 颗`);
   }else{
     SFX.fail();
-    toast('💢', '差一点…', `从第 ${col+1} 号口出局，没落在这局的亮灯出口上`);
+    toast('💢', '差一点…', `投入 ${bet} 颗，从第 ${col+1} 号口出局，没落在亮灯出口上`);
+    log(`未中｜投入 ${bet} 颗打了水漂`);
   }
+  refreshBetButtons();
 }
 function toast(em,h,p){
   el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
@@ -677,16 +764,40 @@ function toast(em,h,p){
 function closeToast(){
   el('toast').classList.remove('show');
   clearLights(); uiRoundMult.textContent='--';
-  G.state='idle'; setBtn('投 币', G.coins>=CFG.BET, 'coin');
+  G.state='idle'; btnStop.disabled = true;
+  refreshBetButtons();
 }
 el('t_ok').onclick = closeToast;
 el('t_close').onclick = closeToast;
 el('toast').addEventListener('click', e=>{ if(e.target.id==='toast') closeToast(); });
 
 /* ══════════════════════════════════════════════════════════════
+   5.5 调试面板
+   ══════════════════════════════════════════════════════════════ */
+const dev = el('dev');
+dev.querySelector('.dh').onclick = ()=>{
+  dev.classList.toggle('hid');
+  el('devt').textContent = dev.classList.contains('hid') ? '+' : '−';
+};
+el('s_bias').oninput = e=>{
+  CFG.winBias = (+e.target.value)/100;
+  el('v_bias').textContent = e.target.value+'%';
+};
+el('b_free').onclick = ()=>{
+  G.marbles += 50; setNum(uiMarbles, G.marbles); refreshBetButtons(); SFX.coin();
+};
+el('b_reset').onclick = ()=>{
+  if(G.state!=='idle') return;
+  G.marbles = CFG.START_MARBLES; G.bet = 0;
+  setNum(uiMarbles, G.marbles); setNum(uiBet, 0);
+  refreshBetButtons(); log('已重置');
+};
+refreshBetButtons();
+
+/* ══════════════════════════════════════════════════════════════
    6. 自检：赔率必须跟亮灯数量对得上，倍率抽取必须均匀
    ══════════════════════════════════════════════════════════════ */
-window.__plinko = {CFG, G, pickRound, rollLanding};
+window.__plinko = {CFG, G, pickRound, rollLanding, addMarbles};
 (function selfCheck(){
   const N = 200000;
   const multCount = {}; CFG.MULTS.forEach(m=>multCount[m]=0);

@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>赛博推币机</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --ink:#f5f2ee; --dim:#a79f97;
+    --hot:#ff2e6a; --gold:#ffcf4a; --cyan:#3ee8ff; --violet:#8a63ff;
+    --cjk:"PingFang SC","Microsoft YaHei",sans-serif;
+    --glass-bg: rgba(255,255,255,.08);
+    --glass-bg-strong: rgba(255,255,255,.13);
+    --glass-border: rgba(255,255,255,.18);
+    --glass-shadow: 0 1px 0 rgba(255,255,255,.14) inset, 0 14px 34px -14px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:#0b0910;color:var(--ink);
+    font:14px/1.4 -apple-system,var(--cjk),system-ui,sans-serif;
+    overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+  #cv{position:fixed;inset:0;display:block}
+  .disp{font-family:"Bungee",var(--cjk),sans-serif}
+  .num{font-family:"Chakra Petch",var(--cjk),sans-serif; font-variant-numeric:tabular-nums}
+
+  .ambient{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;opacity:.6;
+    background:
+      radial-gradient(40vmax 40vmax at -8vmax -10vmax, var(--hot), transparent 60%),
+      radial-gradient(36vmax 36vmax at 108vw -8vmax, var(--cyan), transparent 60%),
+      radial-gradient(32vmax 32vmax at -6vmax 108vh, var(--gold), transparent 62%);
+    animation:ambientDrift 28s ease-in-out infinite;
+  }
+  @keyframes ambientDrift{0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(1.6vmax,-1.4vmax) scale(1.05)}}
+  @media (prefers-reduced-motion:reduce){ .ambient{animation:none} }
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;left:0;right:0;top:0;padding:12px 14px;display:flex;
+       align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
+  .hud-left{display:flex;align-items:center;gap:9px}
+  .backbtn{pointer-events:auto;width:28px;height:28px;border-radius:50%;flex:0 0 auto;
+    display:grid;place-items:center;text-decoration:none;color:var(--ink);font-size:14px;
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+    box-shadow:var(--glass-shadow);transition:transform .15s,background .15s}
+  .backbtn:active{transform:scale(.9);background:var(--glass-bg-strong)}
+  .brand{font-family:"Bungee",var(--cjk),sans-serif;letter-spacing:.06em;font-size:13px;
+    background:linear-gradient(90deg,var(--cyan),var(--hot));-webkit-background-clip:text;
+    background-clip:text;color:transparent;text-shadow:0 0 18px rgba(62,232,255,.25)}
+  .stats{display:flex;gap:10px}
+  .chip{background:var(--glass-bg);border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+    box-shadow:var(--glass-shadow);
+    border-radius:999px;padding:5px 11px;font-size:12px}
+  .chip b{font-family:"Chakra Petch",var(--cjk),sans-serif;font-variant-numeric:tabular-nums;
+    color:var(--gold);font-size:14px;font-weight:700;display:inline-block}
+  .bump{animation:bump .34s cubic-bezier(.3,1.4,.4,1)}
+  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}}
+
+  /* ---------- 掉落的 +N 浮字 ---------- */
+  .pop{position:fixed;z-index:8;pointer-events:none;font-family:"Chakra Petch",var(--cjk),sans-serif;
+    font-weight:700;font-size:15px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.6);
+    animation:popUp 1s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes popUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-46px);opacity:0}}
+
+  /* ---------- 控制台 ---------- */
+  .panel{position:fixed;left:0;right:0;bottom:0;z-index:5;
+    padding:14px max(14px,env(safe-area-inset-left)) max(18px,env(safe-area-inset-bottom));
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    background:linear-gradient(transparent,rgba(6,4,10,.55) 30%,rgba(6,4,10,.92))}
+  .aimrow{display:flex;align-items:center;gap:10px;width:min(340px,86vw)}
+  .aimrow input[type=range]{flex:1;accent-color:var(--hot);height:22px}
+  .aimlbl{font-family:"Chakra Petch",var(--cjk),sans-serif;font-size:11px;color:var(--dim);white-space:nowrap}
+  button{font:inherit;color:var(--ink);cursor:pointer;user-select:none}
+  .coin{position:relative;overflow:hidden;width:88px;height:88px;border-radius:50%;
+    font-size:14px;font-weight:800;letter-spacing:.1em;border:1px solid rgba(255,255,255,.2);
+    transition:transform .16s cubic-bezier(.2,.8,.3,1.2),box-shadow .16s;
+    background:radial-gradient(circle at 35% 30%,#ffe595,#d99a00 70%);
+    box-shadow:0 5px 0 #7a5600,0 12px 30px rgba(217,154,0,.4);color:#3a2600}
+  .coin::before{content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;
+    background:linear-gradient(160deg,rgba(255,255,255,.55),transparent 42%);
+    mix-blend-mode:overlay;opacity:.8}
+  .coin:active{transform:translateY(5px);box-shadow:0 0 0 #7a5600}
+  .coin[disabled]{filter:grayscale(.85) brightness(.55);box-shadow:0 5px 0 #222;cursor:default}
+  .hint{position:fixed;bottom:6px;left:0;right:0;text-align:center;color:#4d4757;
+    font-size:11px;z-index:4;pointer-events:none}
+  @media (max-width:430px){ .hint{display:none} .coin{width:76px;height:76px;font-size:13px} }
+
+  /* ---------- 调试 ---------- */
+  #dev{position:fixed;right:10px;top:52px;z-index:6;width:210px;font-size:12px;
+    background:var(--glass-bg-strong);border:1px solid var(--glass-border);border-radius:14px;
+    padding:10px 12px;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+    box-shadow:var(--glass-shadow)}
+  #dev.hid>*:not(.dh){display:none}
+  .dh{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+    font-weight:700;color:var(--cyan);letter-spacing:.05em}
+  #dev label{display:block;margin-top:9px;color:var(--dim)}
+  #dev label span{color:var(--ink);float:right;font-variant-numeric:tabular-nums}
+  #dev input[type=range]{width:100%;margin-top:3px;accent-color:var(--hot)}
+  #dev .row{display:flex;gap:6px;margin-top:10px}
+  #dev .row button{flex:1;padding:6px;border-radius:8px;font-size:11px;
+    border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
+  #log{margin-top:9px;color:#6f6880;font-size:11px;min-height:2.6em;font-variant-numeric:tabular-nums}
+
+  /* ---------- 连爆结算 ---------- */
+  #toast{position:fixed;inset:0;display:none;place-items:center;z-index:20;
+    background:rgba(6,4,10,.5);backdrop-filter:blur(10px)}
+  #toast.show{display:grid;animation:fade .22s}
+  @keyframes fade{from{opacity:0}}
+  .card{position:relative;width:min(300px,82vw);padding:26px 22px;text-align:center;border-radius:26px;
+    background:linear-gradient(160deg,rgba(60,48,90,.5),rgba(20,15,30,.55));border:1px solid var(--glass-border);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+    box-shadow:var(--glass-shadow), 0 30px 70px -20px rgba(0,0,0,.65);
+    animation:cardIn .36s cubic-bezier(.2,.8,.2,1)}
+  @keyframes cardIn{from{opacity:0;transform:scale(.9) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .card .em{font-size:52px;line-height:1;margin-bottom:10px}
+  .card h2{margin:0 0 6px;font-size:21px}
+  .card p{margin:0 0 20px;color:var(--dim);font-size:13px}
+  .card button{width:100%;padding:13px;border-radius:14px;border:none;font-weight:700;
+    background:linear-gradient(90deg,var(--cyan),#7a5cff);color:#08060d}
+  .card .x{position:absolute;top:14px;right:14px;width:26px;height:26px;padding:0;
+    border-radius:50%;font-size:12px;font-weight:400;line-height:1;
+    background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--dim);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    transition:transform .15s,background .15s,color .15s}
+  .card .x:active{transform:scale(.88);background:var(--glass-bg-strong);color:var(--ink)}
+  .confetti-bit{position:fixed;top:38%;width:7px;height:10px;border-radius:2px;z-index:25;
+    pointer-events:none;animation:confettiFall 1.15s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes confettiFall{
+    0%{transform:translate(0,0) rotate(0deg);opacity:1}
+    100%{transform:translate(calc(var(--dx,0) * 130px),68vh) rotate(720deg);opacity:0}
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="ambient"></div>
+
+<div class="hud">
+  <div class="hud-left">
+    <a class="backbtn" href="index.html" title="返回大厅" aria-label="返回大厅">←</a>
+    <div class="brand">赛博推币机</div>
+  </div>
+  <div class="stats">
+    <div class="chip">币 <b id="coins">10</b></div>
+    <div class="chip">获得 <b id="won">0</b></div>
+  </div>
+</div>
+
+<div id="dev" class="hid">
+  <div class="dh"><span>◈ 参数调试</span><span id="devt">+</span></div>
+  <label>推板速度 <span id="v_speed">100%</span><input id="s_speed" type="range" min="40" max="220" value="100"></label>
+  <label>推板行程 <span id="v_amp">100%</span><input id="s_amp" type="range" min="50" max="150" value="100"></label>
+  <div class="row"><button id="b_free">+10 币</button><button id="b_clear">清空重置</button></div>
+  <div id="log">等待投币</div>
+</div>
+
+<div class="panel">
+  <div class="aimrow">
+    <span class="aimlbl">左</span>
+    <input type="range" id="aim" min="-100" max="100" value="0">
+    <span class="aimlbl">右</span>
+  </div>
+  <button class="coin" id="btnCoin">投 币</button>
+</div>
+<div class="hint">拖动上方滑条瞄准投币位置，推板会持续把币往前推——顶到边缘就会掉进返奖槽</div>
+
+<div id="toast"><div class="card">
+  <button class="x" id="t_close" aria-label="关闭">✕</button>
+  <div class="em" id="t_em">🪙</div>
+  <h2 id="t_h">连爆！</h2>
+  <p id="t_p"></p>
+  <button id="t_ok">继续</button>
+</div></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+
+/* ══════════════════════════════════════════════════════════════
+   0. 配置
+   ══════════════════════════════════════════════════════════════ */
+const CFG = {
+  W: 0.40,                       // 台面内腔半宽
+  BACK_Z: -0.32, LEDGE_Z: 0.18,  // 后墙 / 前缘（过了这条线就没有台面接着，会掉下去）
+  WALL_H: 0.22,
+  // 推板必须扫到接近前缘——留太多"够不着"的空当，币被推到推板极限位置后
+  // 没有东西再接着推，就会卡在半路，永远到不了前缘（第一版就是栽在这上面）
+  PADDLE_MIN_Z: -0.27, PADDLE_MAX_Z: 0.15, PADDLE_H: 0.11,
+  PADDLE_SPEED: 0.55, PADDLE_AMP: 1,       // 调试面板可实时改
+  COIN_R: 0.030, COIN_H: 0.011, COIN_MASS: 0.02,
+  DROP_Y: 0.55,
+  START_COINS: 22,
+  CAP: 70,                        // 台面上限，超过就先不让投，等它自己掉下去几个
+};
+const G = {
+  coins: 10, won: 0,
+  aim: 0,          // -1..1
+  coinsInPlay: [],
+  paddlePhase: 0,
+  fallEvents: [],   // 最近一段时间内掉落事件的时间戳，用来判定"连爆"
+};
+const el = id=>document.getElementById(id);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const rnd = (a,b)=>a+Math.random()*(b-a);
+
+function setNum(elm, val){
+  elm.textContent = val;
+  elm.classList.remove('bump'); void elm.offsetWidth; elm.classList.add('bump');
+}
+function log(s){ const l=el('log'); if(l) l.textContent = s; }
+function confetti(n=20){
+  const colors=['var(--hot)','var(--gold)','var(--cyan)','var(--violet)','#fff'];
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');
+    s.className='confetti-bit';
+    s.style.left=(42+Math.random()*16)+'%';
+    s.style.setProperty('--dx',(Math.random()*2-1).toFixed(2));
+    s.style.background=colors[i%colors.length];
+    s.style.animationDelay=(Math.random()*.18)+'s';
+    document.body.appendChild(s);
+    s.addEventListener('animationend',()=>s.remove());
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   1. 音效
+   ══════════════════════════════════════════════════════════════ */
+const SFX = (()=>{
+  let ac=null, master=null, motor=null;
+  const on = ()=>{ if(ac) return ac;
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value=.5; master.connect(ac.destination);
+    return ac; };
+  const tone=(f,d,type='square',g=.10,f2=null,delay=0)=>{ if(!ac) return;
+    const t=ac.currentTime+delay, o=ac.createOscillator(); o.type=type;
+    o.frequency.setValueAtTime(f,t);
+    if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(0,t);
+    gn.gain.linearRampToValueAtTime(g,t+.008);
+    gn.gain.exponentialRampToValueAtTime(1e-4,t+d);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t+d+.02); };
+  const noise=(d,g,lp,delay=0)=>{ if(!ac) return;
+    const n=Math.floor(ac.sampleRate*d), buf=ac.createBuffer(1,n,ac.sampleRate), ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=ac.createBufferSource(); s.buffer=buf;
+    const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp;
+    const gn=ac.createGain(); gn.gain.value=g;
+    s.connect(f); f.connect(gn); gn.connect(master);
+    s.start(ac.currentTime+delay); };
+  return {
+    unlock(){ on(); if(ac.state==='suspended') ac.resume(); },
+    drop(){ tone(900,.05,'square',.07); noise(.04,.05,4000); },
+    win(){ tone(1100,.05,'square',.08,1500); noise(.06,.06,5000,.02); },
+    combo(n){ const seq=[880,1046,1318,1568,1975]; seq.slice(0,Math.min(5,n)).forEach((f,i)=>tone(f,.12,'square',.09,null,i*.06));
+      if(navigator.vibrate)navigator.vibrate([30,40,60]); },
+    motorSet(v){ if(!ac) return;
+      if(!motor){ const o=ac.createOscillator(); o.type='sawtooth'; o.frequency.value=48;
+        const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=260;
+        const g=ac.createGain(); g.gain.value=0;
+        o.connect(f); f.connect(g); g.connect(master); o.start();
+        motor={o,g,f}; }
+      motor.g.gain.setTargetAtTime(v*.05, ac.currentTime, .08);
+      motor.o.frequency.setTargetAtTime(44+v*10, ac.currentTime, .12); },
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   2. 场景
+   ══════════════════════════════════════════════════════════════ */
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0910);
+scene.fog = new THREE.Fog(0x0b0910, 3.6, 8.0);
+
+const camera = new THREE.PerspectiveCamera(40, 1, .05, 30);
+const CAM_AT = new THREE.Vector3(0, .05, -.05);
+const camBase = new THREE.Vector3(0, .72, 1.05);
+
+scene.add(new THREE.HemisphereLight(0x8fb6ff, 0x140f1c, .6));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(0.9, 1.8, 1.0);
+key.castShadow = true;
+key.shadow.mapSize.set(1024,1024);
+Object.assign(key.shadow.camera,{left:-.6,right:.6,top:.6,bottom:-.6,near:.3,far:4});
+key.shadow.camera.updateProjectionMatrix();
+key.shadow.bias = -0.0015;
+scene.add(key);
+scene.add(new THREE.PointLight(0x3ee8ff, .8, 2.2, 2).translateZ(.6).translateY(.5));
+scene.add(new THREE.PointLight(0xff2e6a, .7, 2.2, 2).translateX(-.6).translateY(.6));
+
+const M = (c,r=.6,m=.1,o={}) => new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,...o});
+const frameMat = M(0xd8143f,.42,.35);
+const trimMat = new THREE.MeshPhysicalMaterial({color:0xffcf4a,roughness:.32,metalness:.55,clearcoat:1,clearcoatRoughness:.15});
+const darkMat = M(0x1a1420,.85,.1);
+
+/* ---- 柜体 ---- */
+const cab = new THREE.Group(); scene.add(cab);
+const W = CFG.W, BACK = CFG.BACK_Z, LEDGE = CFG.LEDGE_Z, WH = CFG.WALL_H;
+
+// 台面：只铺到前缘，前面故意不铺，币"走"过去就是真的没有地方接着了
+const tableDepth = LEDGE - BACK;
+const table = new THREE.Mesh(new THREE.BoxGeometry(W*2+.06, .03, tableDepth), M(0x241a30,.8,.15));
+table.position.set(0, -.015, BACK + tableDepth/2);
+table.receiveShadow = true; cab.add(table);
+
+// 后墙 + 两侧墙
+const backWall = new THREE.Mesh(new THREE.BoxGeometry(W*2+.06, WH, .04), frameMat);
+backWall.position.set(0, WH/2, BACK-.02); backWall.castShadow = true; cab.add(backWall);
+for(const s of [-1,1]){
+  const sw = new THREE.Mesh(new THREE.BoxGeometry(.04, WH, tableDepth+.04), frameMat);
+  sw.position.set(s*(W+.02), WH/2, BACK+tableDepth/2); sw.castShadow = true; cab.add(sw);
+}
+// 前缘描边（提示"这里是尽头"），贴着台面前沿一条发光trim
+const lip = new THREE.Mesh(new THREE.BoxGeometry(W*2+.06, .014, .02), trimMat);
+lip.position.set(0, .002, LEDGE); cab.add(lip);
+// 返奖槽：低于台面一截的接币槽，纯视觉，币掉过去后会被直接回收（不必真的落进去）
+const trayMat = new THREE.MeshStandardMaterial({color:0x120c1c,roughness:.9,side:THREE.BackSide});
+const tray = new THREE.Mesh(new THREE.BoxGeometry(W*2+.02,.16,.14), trayMat);
+tray.position.set(0,-.10, LEDGE+.06); cab.add(tray);
+const trayGlow = new THREE.Mesh(new THREE.BoxGeometry(W*2+.04,.006,.006),
+  new THREE.MeshStandardMaterial({color:0x3ee8ff, emissive:0x3ee8ff, emissiveIntensity:1.1}));
+trayGlow.position.set(0,-.02, LEDGE+.01); cab.add(trayGlow);
+
+// 顶部招牌
+const marquee = new THREE.Mesh(new THREE.BoxGeometry(W*1.5,.09,.01),
+  new THREE.MeshStandardMaterial({color:0x2a0f3d,emissive:0xff2e6a,emissiveIntensity:.9,roughness:.4}));
+marquee.position.set(0, WH+.10, BACK-.03); cab.add(marquee);
+const inner = new THREE.PointLight(0xfff0d0, 1.4, 1.6, 2);
+inner.position.set(0, WH+.05, (BACK+LEDGE)/2); cab.add(inner);
+
+// 推板（视觉网格 + 玻璃感边框）
+const paddleMat = new THREE.MeshPhysicalMaterial({color:0xdfe6ef,roughness:.25,metalness:.7,clearcoat:1,clearcoatRoughness:.12});
+const paddle = new THREE.Group(); cab.add(paddle);
+const paddleBody = new THREE.Mesh(new THREE.BoxGeometry(W*2-.02, CFG.PADDLE_H, .022), paddleMat);
+paddleBody.castShadow = true; paddle.add(paddleBody);
+const paddleTrim = new THREE.Mesh(new THREE.BoxGeometry(W*2-.02, .012, .026), trimMat);
+paddleTrim.position.y = CFG.PADDLE_H/2 - .006; paddle.add(paddleTrim);
+
+// 玻璃前罩（斜切一点，透视更有街机感）
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color:0xcfe8ff, transparent:true, opacity:.08, roughness:.03, metalness:0, side:THREE.DoubleSide, depthWrite:false });
+const glass = new THREE.Mesh(new THREE.PlaneGeometry(W*2+.1, WH+.22), glassMat);
+glass.position.set(0, WH*.55, LEDGE+.32); glass.renderOrder = 10; cab.add(glass);
+
+/* ══════════════════════════════════════════════════════════════
+   3. 物理
+   ══════════════════════════════════════════════════════════════ */
+const world = new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+world.solver.iterations = 12;
+world.allowSleep = true;
+world.defaultContactMaterial.friction = 0.5;
+world.defaultContactMaterial.restitution = 0.05;
+
+const st9 = (hw,hh,hd,x,y,z)=>{
+  const b = new CANNON.Body({mass:0, type:CANNON.Body.STATIC,
+    shape:new CANNON.Box(new CANNON.Vec3(hw,hh,hd))});
+  b.position.set(x,y,z); world.addBody(b); return b; };
+
+st9(W+.03,.015,tableDepth/2, 0,-.015, BACK+tableDepth/2);      // 台面
+st9(W+.03,WH/2,.02, 0,WH/2, BACK-.02);                          // 后墙
+st9(.02,WH/2,tableDepth/2+.02, -(W+.02),WH/2, BACK+tableDepth/2); // 左墙
+st9(.02,WH/2,tableDepth/2+.02,  (W+.02),WH/2, BACK+tableDepth/2); // 右墙
+st9(W+.03,.5,.02, 0, .5+WH, BACK-.02-.021);                      // 顶（防止币被弹出柜外，留个高高的盖）
+
+// 推板：运动学体，Z 在 PADDLE_MIN_Z..PADDLE_MAX_Z 之间来回扫，靠这颗体把币物理地推出去
+const paddleShape = new CANNON.Box(new CANNON.Vec3(W-.01, CFG.PADDLE_H/2, .011));
+const paddleBodyPhys = new CANNON.Body({mass:0, type:CANNON.Body.KINEMATIC, shape:paddleShape});
+paddleBodyPhys.position.set(0, CFG.PADDLE_H/2, CFG.PADDLE_MIN_Z);
+world.addBody(paddleBodyPhys);
+const paddlePrev = new THREE.Vector3(0, CFG.PADDLE_H/2, CFG.PADDLE_MIN_Z);
+
+/* ---- 币 ---- */
+function makeCoinMesh(){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(CFG.COIN_R, CFG.COIN_R, CFG.COIN_H, 22),
+    M(0xffd873,.32,.85));
+  body.rotation.x = Math.PI/2; body.castShadow = true; g.add(body);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(CFG.COIN_R*.62, 20),
+    new THREE.MeshStandardMaterial({color:0xb8790a,roughness:.5,metalness:.6}));
+  face.position.z = CFG.COIN_H/2+.0006; g.add(face);
+  const face2 = face.clone(); face2.position.z = -(CFG.COIN_H/2+.0006); face2.rotation.y = Math.PI; g.add(face2);
+  return g;
+}
+function spawnCoin(x, y, z, kinematic){
+  const mesh = makeCoinMesh(); cab.add(mesh);
+  const body = new CANNON.Body({
+    mass: CFG.COIN_MASS, shape: new CANNON.Cylinder(CFG.COIN_R, CFG.COIN_R, CFG.COIN_H, 14),
+    linearDamping:.35, angularDamping:.6 });
+  body.position.set(x,y,z);
+  body.quaternion.setFromEuler(Math.PI/2, rnd(0,6.28), 0);
+  world.addBody(body);
+  const rec = {mesh, body, collected:false};
+  G.coinsInPlay.push(rec);
+  return rec;
+}
+function removeCoin(rec){
+  world.removeBody(rec.body); cab.remove(rec.mesh);
+  const i = G.coinsInPlay.indexOf(rec); if(i>=0) G.coinsInPlay.splice(i,1);
+}
+function seedPile(){
+  const cols = 6, rows = 4;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    if(G.coinsInPlay.length>=CFG.START_COINS) break;
+    const x = -W+0.09 + c*((W*2-0.18)/(cols-1)) + rnd(-.01,.01);
+    const z = BACK+0.10 + r*0.075 + rnd(-.01,.01);
+    spawnCoin(x, 0.03+r*CFG.COIN_H*1.4, z);
+  }
+  for(let i=0;i<180;i++) world.step(1/120);   // 预沉降，开局就是服帖的一堆
+}
+seedPile();
+
+/* ══════════════════════════════════════════════════════════════
+   4. 投币 / 瞄准
+   ══════════════════════════════════════════════════════════════ */
+const uiCoins=el('coins'), uiWon=el('won'), btnCoin=el('btnCoin'), aimSlider=el('aim');
+aimSlider.oninput = ()=>{ G.aim = (+aimSlider.value)/100; };
+function refreshCoinBtn(){ btnCoin.disabled = G.coins<1 || G.coinsInPlay.length>=CFG.CAP; }
+function insertCoin(){
+  SFX.unlock();
+  if(G.coins<1 || G.coinsInPlay.length>=CFG.CAP) return;
+  G.coins--; setNum(uiCoins, G.coins);
+  const x = clamp(G.aim, -1, 1) * (W-CFG.COIN_R*1.6);
+  spawnCoin(x, CFG.DROP_Y, CFG.BACK_Z+0.09);
+  SFX.drop();
+  refreshCoinBtn();
+  log(`投入一枚，瞄准位 ${(G.aim*100).toFixed(0)}%`);
+}
+btnCoin.onclick = insertCoin;
+
+/* ══════════════════════════════════════════════════════════════
+   5. 调试面板
+   ══════════════════════════════════════════════════════════════ */
+const dev = el('dev');
+dev.querySelector('.dh').onclick = ()=>{
+  dev.classList.toggle('hid');
+  el('devt').textContent = dev.classList.contains('hid') ? '+' : '−';
+};
+el('s_speed').oninput = e=>{ CFG.PADDLE_SPEED = 0.55*(+e.target.value/100); el('v_speed').textContent = e.target.value+'%'; };
+el('s_amp').oninput = e=>{ CFG.PADDLE_AMP = +e.target.value/100; el('v_amp').textContent = e.target.value+'%'; };
+el('b_free').onclick = ()=>{ G.coins += 10; setNum(uiCoins, G.coins); refreshCoinBtn(); SFX.drop(); };
+el('b_clear').onclick = ()=>{
+  [...G.coinsInPlay].forEach(removeCoin);
+  seedPile(); refreshCoinBtn(); log('已清空重置');
+};
+
+/* ══════════════════════════════════════════════════════════════
+   6. 结算反馈：单枚掉落飘 +1，短时间连续掉落算一次"连爆"
+   ══════════════════════════════════════════════════════════════ */
+function popText(txt, x, y){
+  const p = document.createElement('div'); p.className='pop'; p.textContent = txt;
+  p.style.left = x+'px'; p.style.top = y+'px';
+  document.body.appendChild(p);
+  p.addEventListener('animationend', ()=>p.remove());
+}
+function toast(em,h,p){
+  el('t_em').textContent=em; el('t_h').textContent=h; el('t_p').textContent=p;
+  el('toast').classList.add('show');
+}
+function closeToast(){ el('toast').classList.remove('show'); }
+el('t_ok').onclick = closeToast;
+el('t_close').onclick = closeToast;
+el('toast').addEventListener('click', e=>{ if(e.target.id==='toast') closeToast(); });
+
+const trayScreenPt = new THREE.Vector3();
+function onCoinCollected(){
+  G.won++; G.coins++;
+  setNum(uiCoins, G.coins); setNum(uiWon, G.won);
+  SFX.win();
+  trayScreenPt.set(0,-.02,LEDGE+.01).project(camera);
+  popText('+1', (trayScreenPt.x*.5+.5)*innerWidth + rnd(-40,40), (1-(trayScreenPt.y*.5+.5))*innerHeight);
+  const now = performance.now();
+  G.fallEvents.push(now);
+  G.fallEvents = G.fallEvents.filter(t=>now-t<600);
+  if(G.fallEvents.length===4){          // 600ms 内掉了 4 枚以上，算一次连爆庆祝
+    SFX.combo(G.fallEvents.length);
+    confetti(24);
+    toast('🪙','连爆！', `这一波一口气掉了 ${G.fallEvents.length}+ 枚`);
+    log(`连爆！瞬间掉落 ${G.fallEvents.length}+ 枚`);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. 每帧更新
+   ══════════════════════════════════════════════════════════════ */
+function step(dt){
+  G.paddlePhase += dt * CFG.PADDLE_SPEED * Math.PI*2 * .5;
+  const t = (Math.sin(G.paddlePhase)+1)/2;                 // 0..1
+  const range = (CFG.PADDLE_MAX_Z - CFG.PADDLE_MIN_Z) * clamp(CFG.PADDLE_AMP,0.3,1.6);
+  const baseZ = CFG.PADDLE_MIN_Z + ((CFG.PADDLE_MAX_Z-CFG.PADDLE_MIN_Z)-range)/2;
+  const pz = baseZ + t*range;
+  paddleBodyPhys.position.set(0, CFG.PADDLE_H/2, pz);
+  const VMAX = 1.5;
+  paddleBodyPhys.velocity.set(0,0, clamp((pz-paddlePrev.z)/dt, -VMAX, VMAX));
+  paddlePrev.set(0, CFG.PADDLE_H/2, pz);
+  paddle.position.set(0, CFG.PADDLE_H/2, pz);
+  SFX.motorSet(Math.abs(Math.cos(G.paddlePhase)));
+
+  world.step(1/120, dt, 4);
+
+  for(const rec of [...G.coinsInPlay]){
+    rec.mesh.position.copy(rec.body.position);
+    rec.mesh.quaternion.copy(rec.body.quaternion);
+    const p = rec.body.position;
+    if(p.z > CFG.LEDGE_Z && p.y < -0.06){
+      removeCoin(rec); onCoinCollected();
+    }else if(p.y < -0.6 || Math.abs(p.x) > 1 || Math.abs(p.z) > 1 || p.y > 1.5){
+      removeCoin(rec);                 // 数值兜底：飞出世界的币直接清掉，不计入任何一方
+    }
+  }
+  refreshCoinBtn();
+  inner.intensity = 1.4 + Math.sin(performance.now()/420)*0.06;
+  marquee.material.emissiveIntensity = .75 + Math.sin(performance.now()/300)*.2;
+  trayGlow.material.emissiveIntensity = 1.0 + Math.sin(performance.now()/260)*.3;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   8. 主循环
+   ══════════════════════════════════════════════════════════════ */
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect = w/h;
+  camera.fov = h>w ? 46 : 40;
+  camera.updateProjectionMatrix();
+  const halfV = Math.tan(camera.fov*Math.PI/360);
+  const halfH = halfV*camera.aspect;
+  camBase.set(0, .72, Math.max(.30/halfV, .46/halfH) + .55);
+}
+addEventListener('resize', resize); resize();
+
+let last = performance.now();
+renderer.setAnimationLoop(()=>{
+  const now = performance.now();
+  let dt = (now-last)/1000; last = now;
+  dt = Math.min(dt, 1/30);
+  step(dt);
+  camera.position.copy(camBase);
+  camera.lookAt(CAM_AT);
+  renderer.render(scene, camera);
+});
+
+window.__pusher = {CFG, G, world, insertCoin, step, spawnCoin};
+
+/* ── 自检：物理不能把数值搞炸，长时间空转也得有币能掉出去 ────────── */
+(function selfCheck(){
+  let bad = 0;
+  for(const rec of G.coinsInPlay){
+    const p = rec.body.position;
+    if(!isFinite(p.x) || !isFinite(p.y) || !isFinite(p.z)) bad++;
+  }
+  console.assert(bad===0, `初始摆放后出现 ${bad} 个非法坐标`);
+
+  // 脱离 rAF，手推很多帧，边推板边偶尔投币，确认迟早会有币被推下去
+  // （onCoinCollected 就是真实游戏用的那个，G.won 在这段自检期间照样会被它累加）
+  for(let i=0;i<3000;i++){
+    if(i%140===0 && G.coinsInPlay.length<CFG.CAP){
+      spawnCoin(rnd(-W+.06,W-.06), CFG.DROP_Y, CFG.BACK_Z+0.09);
+    }
+    step(1/60);
+  }
+  const afterCount = G.coinsInPlay.length;
+  console.assert(G.won>0, `自检 3000 帧内一枚币都没掉出去，推板可能没起作用（won=${G.won}）`);
+  for(const rec of G.coinsInPlay){
+    const p = rec.body.position;
+    console.assert(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z), '出现非法坐标，物理可能已经炸了');
+    console.assert(Math.abs(p.x)<1 && Math.abs(p.z)<1, `币坐标 (${p.x.toFixed(2)},${p.z.toFixed(2)}) 明显跑出柜体`);
+  }
+  console.log(`[selfcheck] 推币机 3000 帧仿真：期间掉落 ${G.won} 枚，台面剩余 ${afterCount} 枚，坐标全部合法`);
+
+  // 自检会污染真实的 won/coins，仿真结束后复位成开局状态，不能把这局分数带进真实游戏
+  G.won = 0; G.coins = 10; G.aim = 0; G.fallEvents = [];
+  setNum(el('won'), 0); setNum(el('coins'), 10);
+  [...G.coinsInPlay].forEach(removeCoin);
+  seedPile(); refreshCoinBtn();
+})();
+</script>
+</body>
+</html>
